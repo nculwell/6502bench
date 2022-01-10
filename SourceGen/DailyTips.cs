@@ -17,7 +17,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Web.Script.Serialization;
 using System.Windows.Media.Imaging;
 
 namespace SourceGen {
@@ -156,10 +155,9 @@ namespace SourceGen {
                 return false;
             }
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
             SerTipFile tipFile;
             try {
-                tipFile = ser.Deserialize<SerTipFile>(cereal);
+                tipFile = JSON.Deserialize<SerTipFile>(cereal);
             } catch (Exception ex) {
                 Debug.WriteLine("Failed deserializing tip JSON: " + ex.Message);
                 return false;

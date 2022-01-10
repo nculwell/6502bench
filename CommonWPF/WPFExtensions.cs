@@ -22,11 +22,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-namespace CommonWPF {
+namespace CommonWPF
+{
     /// <summary>
     /// Generic Visual helper.
     /// </summary>
-    public static class VisualHelper {
+    public static class VisualHelper
+    {
         /// <summary>
         /// Find a child object in a WPF visual tree.
         /// </summary>
@@ -39,15 +41,21 @@ namespace CommonWPF {
         /// <typeparam name="T"></typeparam>
         /// <param name="referenceVisual">Start point.</param>
         /// <returns>Object of appropriate type, or null if not found.</returns>
-        public static T GetVisualChild<T>(this Visual referenceVisual) where T : Visual {
-            Visual child = null;
-            for (Int32 i = 0; i < VisualTreeHelper.GetChildrenCount(referenceVisual); i++) {
+        public static T? GetVisualChild<T>(this Visual referenceVisual) where T : Visual
+        {
+            Visual? child = null;
+            for (Int32 i = 0; i < VisualTreeHelper.GetChildrenCount(referenceVisual); i++)
+            {
                 child = VisualTreeHelper.GetChild(referenceVisual, i) as Visual;
-                if (child != null && child is T) {
+                if (child != null && child is T)
+                {
                     break;
-                } else if (child != null) {
+                }
+                else if (child != null)
+                {
                     child = GetVisualChild<T>(child);
-                    if (child != null && child is T) {
+                    if (child != null && child is T)
+                    {
                         break;
                     }
                 }
@@ -63,7 +71,8 @@ namespace CommonWPF {
     /// I click on" and "what row is at the top" that were easy in WinForms are not provided
     /// by WPF.
     /// </summary>
-    public static class ListViewExtensions {
+    public static class ListViewExtensions
+    {
         /// <summary>
         /// Figures out which item index is at the top of the window.  This only works for a
         /// ListView with a VirtualizingStackPanel.
@@ -76,13 +85,16 @@ namespace CommonWPF {
         /// if there's a reason to favor one over the other.
         /// </remarks>
         /// <returns>The item index, or -1 if the list is empty.</returns>
-        public static int GetTopItemIndex(this ListView lv) {
-            if (lv.Items.Count == 0) {
+        public static int GetTopItemIndex(this ListView lv)
+        {
+            if (lv.Items.Count == 0)
+            {
                 return -1;
             }
 
-            VirtualizingStackPanel vsp = lv.GetVisualChild<VirtualizingStackPanel>();
-            if (vsp == null) {
+            VirtualizingStackPanel? vsp = lv.GetVisualChild<VirtualizingStackPanel>();
+            if (vsp == null)
+            {
                 Debug.Assert(false, "ListView does not have a VirtualizingStackPanel");
                 return -1;
             }
@@ -99,8 +111,11 @@ namespace CommonWPF {
         /// ScrollIntoView call takes 60-100ms on a list with fewer than 1,000 items.  And
         /// sometimes it just silently fails.  Prefer ScrollToIndex() to this.
         /// </remarks>
-        public static void ScrollToTopItem(this ListView lv, object item) {
-            ScrollViewer sv = lv.GetVisualChild<ScrollViewer>();
+        public static void ScrollToTopItem(this ListView lv, object item)
+        {
+            ScrollViewer? sv = lv.GetVisualChild<ScrollViewer>();
+            if (sv == null)
+                throw new InvalidOperationException("ListView does not have a ScrollViewer");
             sv.ScrollToBottom();
             lv.ScrollIntoView(item);
         }
@@ -109,8 +124,11 @@ namespace CommonWPF {
         /// Scrolls the ListView to the specified vertical index.  The ScrollViewer should
         /// be operating in "logical" units (lines) rather than "physical" units (pixels).
         /// </summary>
-        public static void ScrollToIndex(this ListView lv, int index) {
-            ScrollViewer sv = lv.GetVisualChild<ScrollViewer>();
+        public static void ScrollToIndex(this ListView lv, int index)
+        {
+            ScrollViewer? sv = lv.GetVisualChild<ScrollViewer>();
+            if (sv == null)
+                throw new InvalidOperationException("ListView does not have a ScrollViewer");
             sv.ScrollToVerticalOffset(index);
         }
 
@@ -118,15 +136,18 @@ namespace CommonWPF {
         /// Returns the ListViewItem that was clicked on, or null if an LVI wasn't the target
         /// of a click (e.g. off the bottom of the list).
         /// </summary>
-        public static ListViewItem GetClickedItem(this ListView lv, MouseButtonEventArgs e) {
+        public static ListViewItem? GetClickedItem(this ListView lv, MouseButtonEventArgs e)
+        {
             DependencyObject dep = (DependencyObject)e.OriginalSource;
 
             // Should start at something like a TextBlock.  Walk up the tree until we hit the
             // ListViewItem.
-            while (dep != null && !(dep is ListViewItem)) {
+            while (dep != null && dep is not ListViewItem)
+            {
                 dep = VisualTreeHelper.GetParent(dep);
             }
-            if (dep == null) {
+            if (dep == null)
+            {
                 return null;
             }
             return (ListViewItem)dep;
@@ -142,22 +163,27 @@ namespace CommonWPF {
         /// </remarks>
         /// <returns>Column index, or -1 if the click was outside the columns (e.g. off the right
         ///   edge).</returns>
-        public static int GetClickEventColumn(this ListView lv, MouseButtonEventArgs e) {
+        public static int GetClickEventColumn(this ListView lv, MouseButtonEventArgs e)
+        {
             // There's a bit of padding that seems to offset things.  Not sure how to account
             // for it, so for now just fudge it.
             const int FUDGE = 4;
 
             // Need to take horizontal scrolling into account.
-            ScrollViewer sv = lv.GetVisualChild<ScrollViewer>();
+            ScrollViewer? sv = lv.GetVisualChild<ScrollViewer>();
+            if (sv == null)
+                throw new InvalidOperationException("ListView does not have a ScrollViewer");
             double scrollPos = sv.HorizontalOffset;
 
             Point p = e.GetPosition(lv);
             GridView gv = (GridView)lv.View;
             double startPos = FUDGE - scrollPos;
-            for (int index = 0; index < gv.Columns.Count; index++) {
+            for (int index = 0; index < gv.Columns.Count; index++)
+            {
                 GridViewColumn col = gv.Columns[index];
 
-                if (p.X < startPos + col.ActualWidth) {
+                if (p.X < startPos + col.ActualWidth)
+                {
                     return index;
                 }
                 startPos += col.ActualWidth;
@@ -175,7 +201,8 @@ namespace CommonWPF {
     /// little weird, though, because double-clicking on a header or blank area doesn't
     /// clear the selection.
     /// </remarks>
-    public static class DataGridExtensions {
+    public static class DataGridExtensions
+    {
         /// <summary>
         /// Determines which row and column was the target of a mouse button action.
         /// </summary>
@@ -184,27 +211,32 @@ namespace CommonWPF {
         /// </remarks>
         /// <returns>True if the click was on a data item.</returns>
         public static bool GetClickRowColItem(this DataGrid dg, MouseButtonEventArgs e,
-                out int rowIndex, out int colIndex, out object item) {
+                out int rowIndex, out int colIndex, out object item)
+        {
             rowIndex = colIndex = -1;
-            item = null;
+            item = new object(); // dummy object to return on false
 
             DependencyObject dep = (DependencyObject)e.OriginalSource;
 
             // The initial dep will likely be a TextBlock.  Walk up the tree until we find
             // an object for the cell.  If we don't find one, this might be a click in the
             // header or off the bottom of the list.
-            while (!(dep is DataGridCell)) {
+            while (dep is not DataGridCell)
+            {
                 dep = VisualTreeHelper.GetParent(dep);
-                if (dep == null) {
+                if (dep == null)
+                {
                     return false;
                 }
             }
             DataGridCell cell = (DataGridCell)dep;
 
             // Now search up for the DataGridRow object.
-            do {
+            do
+            {
                 dep = VisualTreeHelper.GetParent(dep);
-                if (dep == null) {
+                if (dep == null)
+                {
                     Debug.Assert(false, "Found cell but not row?");
                     return false;
                 }
@@ -240,7 +272,8 @@ namespace CommonWPF {
     /// <summary>
     /// RichTextBox extensions.
     /// </summary>
-    public static class RichTextBoxExtensions {
+    public static class RichTextBoxExtensions
+    {
         /// <summary>
         /// Overloads RichTextBox.AppendText() with a version that takes a color as an argument.
         /// NOTE: color is "sticky", and will affect the next call to the built-in AppendText()
@@ -251,14 +284,18 @@ namespace CommonWPF {
         ///
         /// TODO(someday): figure out how to reset the color for future calls.
         /// </remarks>
-        public static void AppendText(this RichTextBox box, string text, Color color) {
+        public static void AppendText(this RichTextBox box, string text, Color color)
+        {
 
             TextRange tr = new TextRange(box.Document.ContentEnd, box.Document.ContentEnd);
             tr.Text = text;
-            try {
+            try
+            {
                 tr.ApplyPropertyValue(TextElement.ForegroundProperty,
                     new SolidColorBrush(color));
-            } catch (FormatException ex) {
+            }
+            catch (FormatException ex)
+            {
                 Debug.WriteLine("RTB AppendText extension failed: " + ex);
             }
         }
@@ -267,11 +304,13 @@ namespace CommonWPF {
     /// <summary>
     /// BitmapSource extensions.
     /// </summary>
-    public static class BitmapSourceExtensions {
+    public static class BitmapSourceExtensions
+    {
         /// <summary>
         /// Creates a scaled copy of a BitmapSource.  Only scales up, using nearest-neighbor.
         /// </summary>
-        public static BitmapSource CreateScaledCopy(this BitmapSource src, int scale) {
+        public static BitmapSource CreateScaledCopy(this BitmapSource src, int scale)
+        {
             // Simple approach always does a "blurry" scale.
             //return new TransformedBitmap(src, new ScaleTransform(scale, scale));
 

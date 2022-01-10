@@ -19,15 +19,16 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Web.Script.Serialization;
 
 using Asm65;
 
-namespace SourceGen {
+namespace SourceGen
+{
     /// <summary>
     /// Target system definition, read from a config file.
     /// </summary>
-    public class SystemDef {
+    public class SystemDef
+    {
         // Fields are deserialized from JSON.  Do not change the field names without updating
         // the config files.
         public string Name { get; set; }
@@ -45,47 +46,60 @@ namespace SourceGen {
         /// the user.
         /// </summary>
         /// <returns>Multi-line string</returns>
-        public string GetSummaryString() {
+        public string GetSummaryString()
+        {
             StringBuilder sb = new StringBuilder();
             sb.Append(Description);
             sb.Append("\r\n\r\n");
 
             sb.AppendFormat(Res.Strings.SETUP_SYSTEM_SUMMARY_FMT, Name, Cpu, Speed);
 
-            if (SymbolFiles.Length > 0) {
+            if (SymbolFiles.Length > 0)
+            {
                 sb.Append("\r\n\r\n");
                 sb.Append(Res.Strings.INITIAL_SYMBOL_FILES);
-                foreach (string str in SymbolFiles) {
+                foreach (string str in SymbolFiles)
+                {
                     sb.Append("\r\n  ");
                     ExternalFile ef = ExternalFile.CreateFromIdent(str);
-                    if (ef == null) {
+                    if (ef == null)
+                    {
                         // Shouldn't happen unless somebody botches an edit.
                         sb.Append("[INVALID] " + str);
-                    } else {
+                    }
+                    else
+                    {
                         sb.Append(ef.GetInnards());
                     }
                 }
             }
 
-            if (ExtensionScripts.Length > 0) {
+            if (ExtensionScripts.Length > 0)
+            {
                 sb.Append("\r\n\r\n");
                 sb.Append(Res.Strings.INITIAL_EXTENSION_SCRIPTS);
-                foreach (string str in ExtensionScripts) {
+                foreach (string str in ExtensionScripts)
+                {
                     sb.Append("\r\n  ");
                     ExternalFile ef = ExternalFile.CreateFromIdent(str);
-                    if (ef == null) {
+                    if (ef == null)
+                    {
                         // Shouldn't happen unless somebody botches an edit.
                         sb.Append("[INVALID] " + str);
-                    } else {
+                    }
+                    else
+                    {
                         sb.Append(ef.GetInnards());
                     }
                 }
             }
 
-            if (Parameters.Count > 0) {
+            if (Parameters.Count > 0)
+            {
                 sb.Append("\r\n\r\n");
                 sb.Append(Res.Strings.INITIAL_PARAMETERS);
-                foreach (KeyValuePair<string, string> kvp in Parameters) {
+                foreach (KeyValuePair<string, string> kvp in Parameters)
+                {
                     sb.Append("\r\n  ");
                     sb.Append(kvp.Key);
                     sb.Append(" = ");
@@ -100,20 +114,26 @@ namespace SourceGen {
         /// Validates the values read from JSON.
         /// </summary>
         /// <returns>True if the inputs are valid and complete.</returns>
-        public bool Validate() {
-            if (string.IsNullOrEmpty(Name)) {
+        public bool Validate()
+        {
+            if (string.IsNullOrEmpty(Name))
+            {
                 return false;
             }
-            if (string.IsNullOrEmpty(GroupName)) {
+            if (string.IsNullOrEmpty(GroupName))
+            {
                 return false;
             }
-            if (CpuDef.GetCpuTypeFromName(Cpu) == CpuDef.CpuType.CpuUnknown) {
+            if (CpuDef.GetCpuTypeFromName(Cpu) == CpuDef.CpuType.CpuUnknown)
+            {
                 return false;
             }
-            if (Speed == 0.0f) {
+            if (Speed == 0.0f)
+            {
                 return false;
             }
-            if (SymbolFiles == null || ExtensionScripts == null || Parameters == null) {
+            if (SymbolFiles == null || ExtensionScripts == null || Parameters == null)
+            {
                 // We don't really need to require these, but it's probably best to
                 // insist on fully-formed entries.
                 return false;
@@ -121,13 +141,17 @@ namespace SourceGen {
 
             // Disallow file idents that point outside the runtime directory.  I don't think
             // there's any harm in allowing it, but there's currently no value in it either.
-            foreach (string str in SymbolFiles) {
-                if (!str.StartsWith("RT:")) {
+            foreach (string str in SymbolFiles)
+            {
+                if (!str.StartsWith("RT:"))
+                {
                     return false;
                 }
             }
-            foreach (string str in ExtensionScripts) {
-                if (!str.StartsWith("RT:")) {
+            foreach (string str in ExtensionScripts)
+            {
+                if (!str.StartsWith("RT:"))
+                {
                     return false;
                 }
             }
@@ -135,24 +159,31 @@ namespace SourceGen {
             return true;
         }
 
-        public override string ToString() {
+        public override string ToString()
+        {
             StringBuilder symFilesStr = new StringBuilder();
-            foreach (string str in SymbolFiles) {
-                if (symFilesStr.Length != 0) {
+            foreach (string str in SymbolFiles)
+            {
+                if (symFilesStr.Length != 0)
+                {
                     symFilesStr.Append(", ");
                 }
                 symFilesStr.Append(str);
             }
             StringBuilder scriptFilesStr = new StringBuilder();
-            foreach (string str in ExtensionScripts) {
-                if (scriptFilesStr.Length != 0) {
+            foreach (string str in ExtensionScripts)
+            {
+                if (scriptFilesStr.Length != 0)
+                {
                     scriptFilesStr.Append(", ");
                 }
                 scriptFilesStr.Append(str);
             }
             StringBuilder paramStr = new StringBuilder();
-            foreach (KeyValuePair<string, string> kvp in Parameters) {
-                if (paramStr.Length != 0) {
+            foreach (KeyValuePair<string, string> kvp in Parameters)
+            {
+                if (paramStr.Length != 0)
+                {
                     paramStr.Append(", ");
                 }
                 paramStr.Append(kvp.Key);
@@ -168,7 +199,8 @@ namespace SourceGen {
     /// <summary>
     /// System definition collection.
     /// </summary>
-    public class SystemDefSet {
+    public class SystemDefSet
+    {
         // Identification string, embedded in the JSON data.
         const string MAGIC = "6502bench SourceGen sysdef v1";
 
@@ -181,21 +213,23 @@ namespace SourceGen {
         /// <summary>
         /// Empty constructor, required for deserialization.
         /// </summary>
-        public SystemDefSet() {}
+        public SystemDefSet() { }
 
         /// <summary>
         /// Reads the named config file.  Throws an exception on failure.
         /// </summary>
         /// <param name="pathName">Config file path name</param>
         /// <returns>Fully-populated system defs.</returns>
-        public static SystemDefSet ReadFile(string pathName) {
+        public static SystemDefSet ReadFile(string pathName)
+        {
             string fileStr = File.ReadAllText(pathName);
             //Debug.WriteLine("READ " + fileStr);
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
+            var ser = new JsonSerializer();
             SystemDefSet sdf = ser.Deserialize<SystemDefSet>(fileStr);
 
-            if (sdf.Contents != MAGIC) {
+            if (sdf.Contents != MAGIC)
+            {
                 // This shouldn't happen unless somebody is tampering with the
                 // config file.
                 Debug.WriteLine("Expected contents '" + MAGIC + "', got " +
@@ -210,9 +244,12 @@ namespace SourceGen {
             return sdf;
         }
 
-        public SystemDef FindEntryByName(string name) {
-            foreach (SystemDef sd in Defs) {
-                if (sd.Name == name) {
+        public SystemDef FindEntryByName(string name)
+        {
+            foreach (SystemDef sd in Defs)
+            {
+                if (sd.Name == name)
+                {
                     return sd;
                 }
             }

@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\PluginCommon\PluginCommon.csproj" />
+    <ProjectReference Include="..\PluginCommon\PluginCommon.csproj" />
   </ItemGroup>
 
 </Project>

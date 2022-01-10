@@ -20,38 +20,52 @@ using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
-namespace CommonWPF {
+namespace CommonWPF
+{
     /// <summary>
     /// The Frame Animation control provides a simple way to display a series of images.
     /// (Think of an animated GIF.)
     ///
     /// Set Bitmaps and IntervalMsec, then call Start.
     /// </summary>
-    public partial class FrameAnimationControl : UserControl {
+    public partial class FrameAnimationControl : UserControl
+    {
         /// <summary>
         /// List of bitmaps to be displayed.
         /// </summary>
-        public List<BitmapSource> Bitmaps {
-            get { return mBitmaps; }
-            set {
-                if (value == null || value.Count == 0) {
+        public List<BitmapSource> Bitmaps
+        {
+            get
+            {
+                if (mBitmaps == null)
+                    throw new InvalidOperationException("Bitmaps is null");
+                return mBitmaps;
+            }
+            set
+            {
+                if (value == null || value.Count == 0)
+                {
                     throw new ArgumentException("Invalid bitmap list");
                 }
                 mBitmaps = value;
-                if (mNext >= value.Count) {
+                if (mNext >= value.Count)
+                {
                     mNext = 0;
                 }
             }
         }
-        private List<BitmapSource> mBitmaps;
+        private List<BitmapSource>? mBitmaps;
 
         /// <summary>
         /// How long to wait before showing next bitmap.
         /// </summary>
-        public int IntervalMsec {
+        public int IntervalMsec
+        {
             get { return mIntervalMsec; }
-            set {
-                if (value < 1) {
+            set
+            {
+                if (value < 1)
+                {
                     throw new ArgumentException("Invalid interval " + value);
                 }
                 mIntervalMsec = value;
@@ -63,7 +77,8 @@ namespace CommonWPF {
         /// <summary>
         /// True if the animation is currently running.
         /// </summary>
-        public bool IsRunning {
+        public bool IsRunning
+        {
             get { return mTimer.IsEnabled; }
         }
 
@@ -81,7 +96,8 @@ namespace CommonWPF {
         /// <summary>
         /// Constructor, invoked from XAML.
         /// </summary>
-        public FrameAnimationControl() {
+        public FrameAnimationControl()
+        {
             InitializeComponent();
 
             mTimer = new DispatcherTimer(DispatcherPriority.Render);
@@ -89,20 +105,27 @@ namespace CommonWPF {
             mTimer.Tick += Tick;
         }
 
-        public void Start() {
-            if (mBitmaps == null) {
+        public void Start()
+        {
+            if (mBitmaps == null)
+            {
                 throw new InvalidOperationException("Must set bitmaps before starting");
             }
             Tick(null, null);   // show something immediately
             mTimer.Start();
         }
 
-        public void Stop() {
+        public void Stop()
+        {
             mTimer.Stop();
         }
 
-        private void Tick(object sender, EventArgs e) {
-            if (mNext >= mBitmaps.Count) {
+        private void Tick(object? sender, EventArgs? e)
+        {
+            if (mBitmaps == null)
+                throw new InvalidOperationException("mBitmaps is null");
+            if (mNext >= mBitmaps.Count)
+            {
                 mNext = 0;
             }
             theImage.Source = mBitmaps[mNext];

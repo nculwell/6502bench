@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
-using System.Web.Script.Serialization;
 
-namespace SourceGen.AsmGen {
+namespace SourceGen.AsmGen
+{
     /// <summary>
     /// Assembler configuration holder.  Serializes and deserializes information held in
     /// application settings.
     /// </summary>
-    public class AssemblerConfig {
+    public class AssemblerConfig
+    {
         // Public fields are deserialized from JSON.  Changing the names will break compatibility.
 
         /// <summary>
@@ -49,18 +51,22 @@ namespace SourceGen.AsmGen {
         /// </summary>
         /// <param name="exePath">Path to executable.  May be empty.</param>
         /// <param name="widths">Column widths.</param>
-        public AssemblerConfig(string exePath, int[] widths) {
-            if (exePath == null) {
+        public AssemblerConfig(string exePath, int[] widths)
+        {
+            if (exePath == null)
+            {
                 throw new Exception("Bad exe path");
             }
-            if (widths.Length != NUM_COLUMNS) {
+            if (widths.Length != NUM_COLUMNS)
+            {
                 throw new Exception("Bad widths.Length " + widths.Length);
             }
             ExecutablePath = exePath;
             ColumnWidths = widths;
         }
 
-        private static string GetSettingName(AssemblerInfo.Id id) {
+        private static string GetSettingName(AssemblerInfo.Id id)
+        {
             return AppSettings.ASM_CONFIG_PREFIX + id.ToString();
         }
 
@@ -72,24 +78,30 @@ namespace SourceGen.AsmGen {
         /// <param name="settings">Settings object to pull the values from.</param>
         /// <param name="id">Assembler ID.</param>
         /// <returns>The AssemblerConfig.</returns>
-        public static AssemblerConfig GetConfig(AppSettings settings, AssemblerInfo.Id id) {
+        public static AssemblerConfig GetConfig(AppSettings settings, AssemblerInfo.Id id)
+        {
             string cereal = settings.GetString(GetSettingName(id), null);
-            if (string.IsNullOrEmpty(cereal)) {
+            if (string.IsNullOrEmpty(cereal))
+            {
                 IAssembler asm = AssemblerInfo.GetAssembler(id);
                 return asm.GetDefaultConfig();
             }
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
-            try {
-                AssemblerConfig config = ser.Deserialize<AssemblerConfig>(cereal);
-                if (config.ColumnWidths == null || config.ColumnWidths.Length != NUM_COLUMNS) {
+            try
+            {
+                AssemblerConfig config = JsonConvert.DeserializeObject<AssemblerConfig>(cereal);
+                if (config.ColumnWidths == null || config.ColumnWidths.Length != NUM_COLUMNS)
+                {
                     throw new Exception("Bad column widths");
                 }
-                if (config.ExecutablePath == null) {
+                if (config.ExecutablePath == null)
+                {
                     throw new Exception("Missing exe path");
                 }
                 return config;
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 Debug.WriteLine("AssemblerConfig deserialization failed: " + ex.Message);
                 return null;
             }
@@ -102,9 +114,9 @@ namespace SourceGen.AsmGen {
         /// <param name="id">Assembler ID.</param>
         /// <param name="config">Asm configuration.</param>
         public static void SetConfig(AppSettings settings, AssemblerInfo.Id id,
-                AssemblerConfig config) {
-            JavaScriptSerializer ser = new JavaScriptSerializer();
-            string cereal = ser.Serialize(config);
+                AssemblerConfig config)
+        {
+            string cereal = JsonConvert.SerializeObject(config);
 
             settings.SetString(GetSettingName(id), cereal);
         }

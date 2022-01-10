@@ -19,7 +19,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Web.Script.Serialization;
 
 using CommonUtil;
 
@@ -566,8 +565,7 @@ namespace SourceGen {
                 spf.DbrValues.Add(kvp.Key.ToString(), new SerDbrValue(kvp.Value));
             }
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
-            string cereal = ser.Serialize(spf);
+            string cereal = JSON.Serialize(spf);
             sb.Append(cereal);
 
             // Stick a linefeed at the end.  Makes git happier.
@@ -585,7 +583,7 @@ namespace SourceGen {
         /// <returns>True on success, false on fatal error.</returns>
         public static bool DeserializeProject(string cereal, DisasmProject proj,
                 FileLoadReport report) {
-            JavaScriptSerializer ser = new JavaScriptSerializer();
+            var ser = new JsonSerializer();
             SerializableProjectFile1 spf;
             try {
                 spf = ser.Deserialize<SerializableProjectFile1>(cereal);

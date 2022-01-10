@@ -19,11 +19,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Web.Script.Serialization;
 
 using CommonUtil;
 
-namespace SourceGen {
+namespace SourceGen
+{
     /// <summary>
     /// SourceGen Edit Commands implementation.
     /// </summary>
@@ -31,7 +31,8 @@ namespace SourceGen {
     /// This is an "experimental feature", meaning it's not in its final form and may be
     /// lacking in features or error checking.
     /// </remarks>
-    public static class Sgec {
+    public static class Sgec
+    {
         public const string SGEC_EXT = "_sgec.txt";
 
         // Commands.
@@ -49,7 +50,8 @@ namespace SourceGen {
         private static bool OUTPUT_ADDR = true;     // addr vs. offset
 
         // Lifted from ProjectFile.
-        public class SerMultiLineComment {
+        public class SerMultiLineComment
+        {
             // NOTE: Text must be CRLF at line breaks.
             public string Text { get; set; }
             public bool BoxMode { get; set; }
@@ -57,7 +59,8 @@ namespace SourceGen {
             public int BackgroundColor { get; set; }
 
             public SerMultiLineComment() { }
-            public SerMultiLineComment(MultiLineComment mlc) {
+            public SerMultiLineComment(MultiLineComment mlc)
+            {
                 Text = mlc.Text;
                 BoxMode = mlc.BoxMode;
                 MaxWidth = mlc.MaxWidth;
@@ -70,15 +73,22 @@ namespace SourceGen {
         /// position delta.
         /// </summary>
         private static string PositionStr(int offset, int prevOffset, AddressMap addrMap,
-                bool relMode) {
-            if (prevOffset < 0 || !relMode) {
+                bool relMode)
+        {
+            if (prevOffset < 0 || !relMode)
+            {
                 // hex offset or address
-                if (OUTPUT_ADDR) {
+                if (OUTPUT_ADDR)
+                {
                     return '$' + addrMap.OffsetToAddress(offset).ToString("x4");
-                } else {
+                }
+                else
+                {
                     return '+' + offset.ToString("x6");
                 }
-            } else {
+            }
+            else
+            {
                 // decimal delta
                 return '>' + (offset - prevOffset).ToString();
             }
@@ -92,33 +102,37 @@ namespace SourceGen {
         /// <param name="detailMsg">Details on failure or success.</param>
         /// <returns>True on success.</returns>
         public static bool ExportToFile(string pathName, DisasmProject proj, bool relMode,
-                out string detailMsg) {
+                out string detailMsg)
+        {
             int numItems = 0;
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
-
             int prevOffset = -1;
-            using (StreamWriter sw = new StreamWriter(pathName, false, new UTF8Encoding(false))) {
-                for (int offset = 0; offset < proj.FileDataLength; offset++) {
-                    if (proj.Notes.TryGetValue(offset, out MultiLineComment nt)) {
+            using (StreamWriter sw = new StreamWriter(pathName, false, new UTF8Encoding(false)))
+            {
+                for (int offset = 0; offset < proj.FileDataLength; offset++)
+                {
+                    if (proj.Notes.TryGetValue(offset, out MultiLineComment nt))
+                    {
                         SerMultiLineComment serCom = new SerMultiLineComment(nt);
-                        string cereal = ser.Serialize(serCom);
+                        string cereal = JSON.Serialize(serCom);
                         sw.WriteLine(SET_NOTE + " " +
                             PositionStr(offset, prevOffset, proj.AddrMap, relMode) + ':' +
                             cereal);
                         prevOffset = offset;
                         numItems++;
                     }
-                    if (proj.LongComments.TryGetValue(offset, out MultiLineComment lc)) {
+                    if (proj.LongComments.TryGetValue(offset, out MultiLineComment lc))
+                    {
                         SerMultiLineComment serCom = new SerMultiLineComment(lc);
-                        string cereal = ser.Serialize(serCom);
+                        string cereal = JSON.Serialize(serCom);
                         sw.WriteLine(SET_LONG_COMMENT + " " +
                             PositionStr(offset, prevOffset, proj.AddrMap, relMode) + ':' +
                             cereal);
                         prevOffset = offset;
                         numItems++;
                     }
-                    if (!string.IsNullOrEmpty(proj.Comments[offset])) {
+                    if (!string.IsNullOrEmpty(proj.Comments[offset]))
+                    {
                         sw.WriteLine(SET_COMMENT + " " +
                             PositionStr(offset, prevOffset, proj.AddrMap, relMode) + ':' +
                             proj.Comments[offset]);
@@ -140,68 +154,87 @@ namespace SourceGen {
         /// <param name="detailMsg">Failure detail, or null on success.</param>
         /// <returns>True on success.</returns>
         public static bool ImportFromFile(string pathName, DisasmProject proj, ChangeSet cs,
-                out string detailMsg) {
+                out string detailMsg)
+        {
             string[] lines;
-            try {
+            try
+            {
                 lines = File.ReadAllLines(pathName);
-            } catch (IOException ex) {
+            }
+            catch (IOException ex)
+            {
                 // not expecting this to happen
                 detailMsg = ex.Message;
                 return false;
             }
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
+            var ser = new JsonSerializer();
 
             int lineNum = 0;
             int prevOffset = -1;
-            foreach (string line in lines) {
+            foreach (string line in lines)
+            {
                 lineNum++;      // first line is 1
-                if (string.IsNullOrEmpty(line) || line[0] == '#') {
+                if (string.IsNullOrEmpty(line) || line[0] == '#')
+                {
                     // ignore
                     continue;
                 }
                 MatchCollection matches = sLineRegex.Matches(line);
-                if (matches.Count != 1) {
+                if (matches.Count != 1)
+                {
                     detailMsg = "Line " + lineNum + ": unable to parse into tokens";
                     return false;
                 }
 
                 string posStr = matches[0].Groups[GROUP_POS].Value;
                 int offset;
-                if (posStr[0] == '+') {
+                if (posStr[0] == '+')
+                {
                     // offset
-                    if (!Asm65.Number.TryParseIntHex(posStr.Substring(1), out offset)) {
+                    if (!Asm65.Number.TryParseIntHex(posStr.Substring(1), out offset))
+                    {
                         detailMsg = "Line " + lineNum + ": unable to parse offset '" +
                             posStr + "'";
                         return false;
                     }
-                } else if (posStr[0] == '$') {
+                }
+                else if (posStr[0] == '$')
+                {
                     // address
-                    if (!Asm65.Address.ParseAddress(posStr, (1 << 24) - 1, out int addr)) {
+                    if (!Asm65.Address.ParseAddress(posStr, (1 << 24) - 1, out int addr))
+                    {
                         detailMsg = "Line " + lineNum + ": unable to parse address '" +
                             posStr + "'";
                         return false;
                     }
                     offset = proj.AddrMap.AddressToOffset(0, addr);
-                } else if (posStr[0] == '>') {
+                }
+                else if (posStr[0] == '>')
+                {
                     // relative offset
-                    if (prevOffset < 0) {
+                    if (prevOffset < 0)
+                    {
                         detailMsg = "Line " + lineNum + ": first address/offset cannot be relative";
                         return false;
                     }
-                    if (!Asm65.Number.TryParseInt(posStr.Substring(1), out int delta, out int _)) {
+                    if (!Asm65.Number.TryParseInt(posStr.Substring(1), out int delta, out int _))
+                    {
                         detailMsg = "Line " + lineNum + ": unable to parse delta";
                         return false;
                     }
                     offset = prevOffset + delta;
-                } else {
+                }
+                else
+                {
                     detailMsg = "Line " + lineNum + ": unknown position type '" + posStr[0] + "'";
                     return false;
                 }
 
                 prevOffset = offset;
 
-                if (!proj.GetAnattrib(offset).IsStart) {
+                if (!proj.GetAnattrib(offset).IsStart)
+                {
                     // This causes problems when we try to do a LineListGen update, because
                     // we specifically request it to do the modified offset, which happens to
                     // be in the middle of an instruction, and it gets very confused.
@@ -211,15 +244,19 @@ namespace SourceGen {
 
                 string cmdStr = matches[0].Groups[GROUP_CMD].Value;
                 string valueStr = matches[0].Groups[GROUP_VALUE].Value;
-                switch (cmdStr) {
-                    case SET_COMMENT: {
+                switch (cmdStr)
+                {
+                    case SET_COMMENT:
+                        {
                             string oldComment = proj.Comments[offset];
                             string newComment = valueStr;
-                            if (oldComment == newComment) {
+                            if (oldComment == newComment)
+                            {
                                 // no change
                                 break;
                             }
-                            if (!string.IsNullOrEmpty(oldComment)) {
+                            if (!string.IsNullOrEmpty(oldComment))
+                            {
                                 // overwriting existing entry; make a note
                                 Debug.WriteLine("Replacing comment +" + offset.ToString("x6") +
                                     " '" + oldComment + "'");
@@ -229,14 +266,17 @@ namespace SourceGen {
                             cs.Add(uc);
                         }
                         break;
-                    case SET_LONG_COMMENT: {
+                    case SET_LONG_COMMENT:
+                        {
                             if (!DeserializeMlc(ser, valueStr, false,
-                                    out MultiLineComment newComment)) {
+                                    out MultiLineComment newComment))
+                            {
                                 detailMsg = "Line " + lineNum + ": failed to deserialize value";
                                 return false;
                             }
                             proj.LongComments.TryGetValue(offset, out MultiLineComment oldComment);
-                            if (oldComment == newComment) {
+                            if (oldComment == newComment)
+                            {
                                 // no change
                                 break;
                             }
@@ -245,14 +285,17 @@ namespace SourceGen {
                             cs.Add(uc);
                         }
                         break;
-                    case SET_NOTE: {
+                    case SET_NOTE:
+                        {
                             if (!DeserializeMlc(ser, valueStr, true,
-                                    out MultiLineComment newNote)) {
+                                    out MultiLineComment newNote))
+                            {
                                 detailMsg = "Line " + lineNum + ": failed to deserialize value";
                                 return false;
                             }
                             proj.Notes.TryGetValue(offset, out MultiLineComment oldNote);
-                            if (oldNote == newNote) {
+                            if (oldNote == newNote)
+                            {
                                 // no change
                                 break;
                             }
@@ -273,21 +316,28 @@ namespace SourceGen {
             return true;
         }
 
-        private static bool DeserializeMlc(JavaScriptSerializer ser, string cereal, bool isNote,
-                out MultiLineComment mlc) {
+        private static bool DeserializeMlc(JsonSerializer ser, string cereal, bool isNote,
+                out MultiLineComment mlc)
+        {
             mlc = null;
             SerMultiLineComment smlc;
-            try {
+            try
+            {
                 smlc = ser.Deserialize<SerMultiLineComment>(cereal);
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 Debug.WriteLine("Deserialization failed: " + ex.Message);
                 return false;
             }
 
-            if (isNote) {
+            if (isNote)
+            {
                 mlc = new MultiLineComment(smlc.Text,
                     CommonWPF.Helper.ColorFromInt(smlc.BackgroundColor));
-            } else {
+            }
+            else
+            {
                 mlc = new MultiLineComment(smlc.Text, smlc.BoxMode, smlc.MaxWidth);
             }
             return true;

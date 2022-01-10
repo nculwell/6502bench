@@ -18,15 +18,18 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 
-namespace CommonWPF {
+namespace CommonWPF
+{
     /// <summary>
     /// Cancelable progress dialog.
     /// </summary>
-    public partial class WorkProgress : Window {
+    public partial class WorkProgress : Window
+    {
         /// <summary>
         /// Task-specific stuff.
         /// </summary>
-        public interface IWorker {
+        public interface IWorker
+        {
             /// <summary>
             /// Does the work, executing on a work thread.
             /// </summary>
@@ -38,7 +41,7 @@ namespace CommonWPF {
             /// Called on successful completion of the work.  Executes on main thread.
             /// </summary>
             /// <param name="results">Results of work.</param>
-            void RunWorkerCompleted(object results);
+            void RunWorkerCompleted(object? results);
         }
 
         private IWorker mCallbacks;
@@ -46,7 +49,8 @@ namespace CommonWPF {
         private BackgroundWorker mWorker;
 
 
-        public WorkProgress(Window owner, IWorker callbacks, bool indeterminate) {
+        public WorkProgress(Window owner, IWorker callbacks, bool indeterminate)
+        {
             InitializeComponent();
             Owner = owner;
 
@@ -63,16 +67,19 @@ namespace CommonWPF {
             mWorker.RunWorkerCompleted += RunWorkerCompleted;
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e) {
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
             mWorker.RunWorkerAsync();
         }
 
-        private void CancelButton_Click(object sender, RoutedEventArgs e) {
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
             mWorker.CancelAsync();
             cancelButton.IsEnabled = false;
         }
 
-        private void Window_Closing(object sender, CancelEventArgs e) {
+        private void Window_Closing(object sender, CancelEventArgs e)
+        {
             // Either we're closing naturally, or the user clicked the 'X' in the window frame.
             //
             // Strictly speaking, we should treat this as a cancel request, and set
@@ -83,7 +90,8 @@ namespace CommonWPF {
             //
             // We call CancelAsync so that the results are discarded should the worker
             // eventually finish.
-            if (mWorker.IsBusy) {
+            if (mWorker.IsBusy)
+            {
                 mWorker.CancelAsync();
                 DialogResult = false;
             }
@@ -91,50 +99,64 @@ namespace CommonWPF {
 
         // NOTE: executes on work thread.  DO NOT do any UI work here.  DO NOT access
         // the Results property directly.
-        private void DoWork(object sender, DoWorkEventArgs e) {
+        private void DoWork(object? sender, DoWorkEventArgs e)
+        {
             Debug.Assert(sender == mWorker);
 
             object results = mCallbacks.DoWork(mWorker);
-            if (mWorker.CancellationPending) {
+            if (mWorker.CancellationPending)
+            {
                 e.Cancel = true;
-            } else {
+            }
+            else
+            {
                 e.Result = results;
             }
         }
 
         // Callback that fires when a progress update is made.
-        private void ProgressChanged(object sender, ProgressChangedEventArgs e) {
+        private void ProgressChanged(object? sender, ProgressChangedEventArgs e)
+        {
             int percent = e.ProgressPercentage;
-            string msg = e.UserState as string;
+            string? msg = e.UserState as string;
 
-            if (percent < 0 || percent > 100) {
+            if (percent < 0 || percent > 100)
+            {
                 Debug.WriteLine("WorkProgress: bad percent " + percent);
                 percent = 0;
             }
 
-            if (!string.IsNullOrEmpty(msg)) {
+            if (!string.IsNullOrEmpty(msg))
+            {
                 messageText.Text = msg;
             }
             progressBar.Value = percent;
         }
 
         // Callback that fires when execution completes.
-        private void RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e) {
-            if (e.Cancelled) {
+        private void RunWorkerCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Cancelled)
+            {
                 Debug.WriteLine("CANCELED " + DialogResult);
                 // If the window was closed, the DialogResult will already be set, and WPF
                 // throws a misleading exception ("only after Window is created and shown")
                 // if you try to set the result twice.
-                if (DialogResult == null) {
+                if (DialogResult == null)
+                {
                     DialogResult = false;
                 }
-            } else if (e.Error != null) {
+            }
+            else if (e.Error != null)
+            {
                 // Unexpected; success/failure should be passed through e.Result.
                 string failMsg = (string)FindResource("str_OperationFailedCaption");
                 MessageBox.Show(e.Error.ToString(), failMsg,
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 DialogResult = false;
-            } else {
+            }
+            else
+            {
                 mCallbacks.RunWorkerCompleted(e.Result);
                 DialogResult = true;
             }

@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
-using System.Web.Script.Serialization;
+//using System.Web.Script.Serialization;
 
-namespace SourceGen {
+namespace SourceGen
+{
     /// <summary>
     /// Application settings registry.  This holds both user-accessible settings and saved
     /// values like window widths.
@@ -30,7 +32,8 @@ namespace SourceGen {
     /// We don't discard things we don't recognize.  If we somehow end up reading a config
     /// file from a newer version of the app, the various settings will be retained.
     /// </summary>
-    public class AppSettings {
+    public class AppSettings
+    {
         #region Names
 
         // Name constants.  Having them defined here avoids collisions and misspellings, and
@@ -161,8 +164,10 @@ namespace SourceGen {
         /// <summary>
         /// Single global instance of app settings.
         /// </summary>
-        public static AppSettings Global {
-            get {
+        public static AppSettings Global
+        {
+            get
+            {
                 return sSingleton;
             }
         }
@@ -186,10 +191,12 @@ namespace SourceGen {
         /// Creates a copy of this object.
         /// </summary>
         /// <returns></returns>
-        public AppSettings GetCopy() {
+        public AppSettings GetCopy()
+        {
             AppSettings copy = new AppSettings();
             //copy.mSettings.EnsureCapacity(mSettings.Count);
-            foreach (KeyValuePair<string, string> kvp in mSettings) {
+            foreach (KeyValuePair<string, string> kvp in mSettings)
+            {
                 copy.mSettings.Add(kvp.Key, kvp.Value);
             }
             return copy;
@@ -203,7 +210,8 @@ namespace SourceGen {
         /// reference to the singleton.
         /// </summary>
         /// <param name="newSettings"></param>
-        public void ReplaceSettings(AppSettings newSettings) {
+        public void ReplaceSettings(AppSettings newSettings)
+        {
             // Clone the new list, and stuff it into the old object.  This way the
             // objects aren't sharing lists.
             mSettings = newSettings.GetCopy().mSettings;
@@ -215,8 +223,10 @@ namespace SourceGen {
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="newSettings"></param>
-        public void MergeSettings(AppSettings newSettings) {
-            foreach (KeyValuePair<string, string> kvp in newSettings.mSettings) {
+        public void MergeSettings(AppSettings newSettings)
+        {
+            foreach (KeyValuePair<string, string> kvp in newSettings.mSettings)
+            {
                 mSettings[kvp.Key] = kvp.Value;
             }
             Dirty = true;
@@ -229,11 +239,14 @@ namespace SourceGen {
         /// <param name="defaultValue">Setting default value.</param>
         /// <returns>The value found, or the default value if no setting with the specified
         ///   name exists, or the stored value is not an integer.</returns>
-        public int GetInt(string name, int defaultValue) {
-            if (!mSettings.TryGetValue(name, out string valueStr)) {
+        public int GetInt(string name, int defaultValue)
+        {
+            if (!mSettings.TryGetValue(name, out string valueStr))
+            {
                 return defaultValue;
             }
-            if (!int.TryParse(valueStr, out int value)) {
+            if (!int.TryParse(valueStr, out int value))
+            {
                 Debug.WriteLine("Warning: int parse failed on " + name + "=" + valueStr);
                 return defaultValue;
             }
@@ -245,9 +258,11 @@ namespace SourceGen {
         /// </summary>
         /// <param name="name">Setting name.</param>
         /// <param name="value">Setting value.</param>
-        public void SetInt(string name, int value) {
+        public void SetInt(string name, int value)
+        {
             string newVal = value.ToString();
-            if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != newVal) {
+            if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != newVal)
+            {
                 mSettings[name] = newVal;
                 Dirty = true;
             }
@@ -260,11 +275,14 @@ namespace SourceGen {
         /// <param name="defaultValue">Setting default value.</param>
         /// <returns>The value found, or the default value if no setting with the specified
         ///   name exists, or the stored value is not a boolean.</returns>
-        public bool GetBool(string name, bool defaultValue) {
-            if (!mSettings.TryGetValue(name, out string valueStr)) {
+        public bool GetBool(string name, bool defaultValue)
+        {
+            if (!mSettings.TryGetValue(name, out string valueStr))
+            {
                 return defaultValue;
             }
-            if (!bool.TryParse(valueStr, out bool value)) {
+            if (!bool.TryParse(valueStr, out bool value))
+            {
                 Debug.WriteLine("Warning: bool parse failed on " + name + "=" + valueStr);
                 return defaultValue;
             }
@@ -276,9 +294,11 @@ namespace SourceGen {
         /// </summary>
         /// <param name="name">Setting name.</param>
         /// <param name="value">Setting value.</param>
-        public void SetBool(string name, bool value) {
+        public void SetBool(string name, bool value)
+        {
             string newVal = value.ToString();
-            if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != newVal) {
+            if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != newVal)
+            {
                 mSettings[name] = newVal;
                 Dirty = true;
             }
@@ -293,14 +313,19 @@ namespace SourceGen {
         /// <returns>The value found, or the default value if no setting with the specified
         ///   name exists, or the stored value is not a member of the specified enumerated
         ///   type.</returns>
-        public int GetEnum(string name, Type enumType, int defaultValue) {
-            if (!mSettings.TryGetValue(name, out string valueStr)) {
+        public int GetEnum(string name, Type enumType, int defaultValue)
+        {
+            if (!mSettings.TryGetValue(name, out string valueStr))
+            {
                 return defaultValue;
             }
-            try {
+            try
+            {
                 object o = Enum.Parse(enumType, valueStr);
                 return (int)o;
-            } catch (ArgumentException ae) {
+            }
+            catch (ArgumentException ae)
+            {
                 Debug.WriteLine("Failed to parse " + valueStr + " (enum " + enumType + "): " +
                     ae.Message);
                 return defaultValue;
@@ -313,9 +338,11 @@ namespace SourceGen {
         /// <param name="name">Setting name.</param>
         /// <param name="enumType">Enum type.</param>
         /// <param name="value">Setting value (integer enum index).</param>
-        public void SetEnum(string name, Type enumType, int value) {
+        public void SetEnum(string name, Type enumType, int value)
+        {
             string newVal = Enum.GetName(enumType, value);
-            if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != newVal) {
+            if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != newVal)
+            {
                 mSettings[name] = newVal;
                 Dirty = true;
             }
@@ -328,8 +355,10 @@ namespace SourceGen {
         /// <param name="name">Setting name.</param>
         /// <param name="defaultValue">Setting default value.</param>
         /// <returns>The value found, or defaultValue if not value is found.</returns>
-        public string GetString(string name, string defaultValue) {
-            if (!mSettings.TryGetValue(name, out string valueStr) || valueStr == null) {
+        public string GetString(string name, string defaultValue)
+        {
+            if (!mSettings.TryGetValue(name, out string valueStr) || valueStr == null)
+            {
                 return defaultValue;
             }
             return valueStr;
@@ -341,12 +370,17 @@ namespace SourceGen {
         /// <param name="name">Setting name.</param>
         /// <param name="value">Setting value.  If the value is null, the setting will be
         ///   removed.</param>
-        public void SetString(string name, string value) {
-            if (value == null) {
+        public void SetString(string name, string value)
+        {
+            if (value == null)
+            {
                 mSettings.Remove(name);
                 Dirty = true;
-            } else {
-                if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != value) {
+            }
+            else
+            {
+                if (!mSettings.TryGetValue(name, out string oldValue) || oldValue != value)
+                {
                     mSettings[name] = value;
                     Dirty = true;
                 }
@@ -357,13 +391,13 @@ namespace SourceGen {
         /// Serializes settings dictionary into a string, for saving settings to a file.
         /// </summary>
         /// <returns>Serialized settings.</returns>
-        public string Serialize() {
+        public string Serialize()
+        {
             StringBuilder sb = new StringBuilder(1024);
             sb.Append(MAGIC);   // augment with version string, which will be stripped
             sb.Append("\r\n");  // will be ignored by deserializer; might get converted to \n
 
-            JavaScriptSerializer ser = new JavaScriptSerializer();
-            string cereal = ser.Serialize(mSettings);
+            string cereal = JsonConvert.SerializeObject(mSettings);
 
             // add some linefeeds to make it easier for humans
             cereal = CommonUtil.TextUtil.NonQuoteReplace(cereal, ",\"", ",\r\n\"");
@@ -379,8 +413,10 @@ namespace SourceGen {
         /// </summary>
         /// <param name="cereal">Serialized settings.</param>
         /// <returns>Deserialized settings, or null if deserialization failed.</returns>
-        public static AppSettings Deserialize(string cereal) {
-            if (!cereal.StartsWith(MAGIC)) {
+        public static AppSettings Deserialize(string cereal)
+        {
+            if (!cereal.StartsWith(MAGIC))
+            {
                 return null;
             }
 
@@ -388,11 +424,13 @@ namespace SourceGen {
             cereal = cereal.Substring(MAGIC.Length);
 
             AppSettings settings = new AppSettings();
-            JavaScriptSerializer ser = new JavaScriptSerializer();
-            try {
-                settings.mSettings = ser.Deserialize<Dictionary<string, string>>(cereal);
+            try
+            {
+                settings.mSettings = JsonConvert.DeserializeObject<Dictionary<string, string>>(cereal);
                 return settings;
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 Debug.WriteLine("Settings deserialization failed: " + ex.Message);
                 return null;
             }

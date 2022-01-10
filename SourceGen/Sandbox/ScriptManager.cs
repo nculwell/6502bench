@@ -23,7 +23,27 @@ using System.Text;
 using CommonUtil;
 using PluginCommon;
 
-namespace SourceGen.Sandbox {
+namespace SourceGen.Sandbox
+{
+
+    public interface IScriptManager
+    {
+        DomainManager DomainMgr { get; }
+        bool UseMainAppDomain { get; }
+
+        void Cleanup();
+        void Clear();
+        string DebugGetLoadedScriptInfo();
+        Dictionary<string, IPlugin> GetActivePlugins();
+        List<IPlugin> GetAllInstances();
+        IPlugin GetInstance(string scriptIdent);
+        bool IsLabelSignificant(Symbol before, Symbol after);
+        bool LoadPlugin(string scriptIdent, out FileLoadReport report);
+        void PrepareScripts(IApplication appRef);
+        bool RebootSandbox();
+        void UnprepareScripts();
+    }
+
     /// <summary>
     /// Maintains a collection of IPlugin instances, or communicates with the remote
     /// PluginManager that holds the collection.  Whether the plugins are instantiated
@@ -31,7 +51,8 @@ namespace SourceGen.Sandbox {
     ///
     /// One of these will be instantiated when the DisasmProject is created.
     /// </summary>
-    public class ScriptManager {
+    public class ScriptManager : IScriptManager
+    {
         public const string FILENAME_EXT = ".cs";
         public static readonly string FILENAME_FILTER = Res.Strings.FILE_FILTER_CS;
 
@@ -43,7 +64,8 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// If true, this ScriptManager is not using a DomainManager.
         /// </summary>
-        public bool UseMainAppDomain {
+        public bool UseMainAppDomain
+        {
             get { return DomainMgr == null; }
         }
 
@@ -62,11 +84,13 @@ namespace SourceGen.Sandbox {
         /// </summary>
         private DisasmProject mProject;
 
-        private class LoadedPluginPath {
+        private class LoadedPluginPath
+        {
             public string ScriptIdent { get; private set; }
             public string DllPath { get; private set; }
 
-            public LoadedPluginPath(string scriptIdent, string dllPath) {
+            public LoadedPluginPath(string scriptIdent, string dllPath)
+            {
                 ScriptIdent = scriptIdent;
                 DllPath = dllPath;
             }
@@ -81,17 +105,22 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// Constructor.
         /// </summary>
-        public ScriptManager(DisasmProject proj) {
+        public ScriptManager(DisasmProject proj)
+        {
             mProject = proj;
 
-            if (!proj.UseMainAppDomainForPlugins) {
+            if (!proj.UseMainAppDomainForPlugins)
+            {
                 CreateDomainManager();
-            } else {
+            }
+            else
+            {
                 mActivePlugins = new Dictionary<string, IPlugin>();
             }
         }
 
-        private void CreateDomainManager() {
+        private void CreateDomainManager()
+        {
             // The project's UseMainAppDomainForPlugins value is theoretically mutable, so
             // don't try to assert it here.
             DomainMgr = new DomainManager(UseKeepAliveHack);
@@ -104,8 +133,10 @@ namespace SourceGen.Sandbox {
         /// Cleans up, discarding the AppDomain if one was created.  Do not continue to use
         /// the object after calling this.
         /// </summary>
-        public void Cleanup() {
-            if (DomainMgr != null) {
+        public void Cleanup()
+        {
+            if (DomainMgr != null)
+            {
                 DomainMgr.Dispose();
                 DomainMgr = null;
             }
@@ -117,10 +148,14 @@ namespace SourceGen.Sandbox {
         /// Clears the list of plugins.  This does not unload assemblies.  Call this when
         /// the list of extension scripts configured into the project has changed.
         /// </summary>
-        public void Clear() {
-            if (DomainMgr == null) {
+        public void Clear()
+        {
+            if (DomainMgr == null)
+            {
                 mActivePlugins.Clear();
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 DomainMgr.PluginMgr.ClearPluginList();
             }
@@ -134,16 +169,20 @@ namespace SourceGen.Sandbox {
         /// <param name="scriptIdent">Script identifier.</param>
         /// <param name="report">Report with errors and warnings.</param>
         /// <returns>True on success.</returns>
-        public bool LoadPlugin(string scriptIdent, out FileLoadReport report) {
+        public bool LoadPlugin(string scriptIdent, out FileLoadReport report)
+        {
             // Make sure the most recent version is compiled.
             string dllPath = PluginDllCache.GenerateScriptDll(scriptIdent,
                 mProject.ProjectPathName, out report);
-            if (dllPath == null) {
+            if (dllPath == null)
+            {
                 return false;
             }
 
-            if (DomainMgr == null) {
-                if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin)) {
+            if (DomainMgr == null)
+            {
+                if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin))
+                {
                     return true;
                 }
                 Assembly asm = Assembly.LoadFile(dllPath);
@@ -151,13 +190,18 @@ namespace SourceGen.Sandbox {
                 mActivePlugins.Add(scriptIdent, plugin);
                 report = new FileLoadReport(dllPath);       // empty report
                 return true;
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 IPlugin plugin = DomainMgr.PluginMgr.LoadPlugin(dllPath, scriptIdent,
                     out string failMsg);
-                if (plugin == null) {
+                if (plugin == null)
+                {
                     report.Add(FileLoadItem.Type.Error, "Failed loading plugin: " + failMsg);
-                } else {
+                }
+                else
+                {
                     mLoadedPlugins.Add(new LoadedPluginPath(scriptIdent, dllPath));
                 }
                 return plugin != null;
@@ -169,8 +213,10 @@ namespace SourceGen.Sandbox {
         /// reloading all of the plugins.
         /// </summary>
         /// <returns>True if no problems were encountered.</returns>
-        public bool RebootSandbox() {
-            if (DomainMgr == null) {
+        public bool RebootSandbox()
+        {
+            if (DomainMgr == null)
+            {
                 return false;
             }
             Debug.WriteLine("Rebooting sandbox...");
@@ -182,17 +228,21 @@ namespace SourceGen.Sandbox {
             bool failed = false;
 
             // Reload plugins.
-            foreach (LoadedPluginPath lpp in mLoadedPlugins) {
+            foreach (LoadedPluginPath lpp in mLoadedPlugins)
+            {
                 IPlugin plugin = DomainMgr.PluginMgr.LoadPlugin(lpp.DllPath, lpp.ScriptIdent,
                     out string failMsg);
-                if (plugin == null) {
+                if (plugin == null)
+                {
                     // This is unexpected; we're opening a DLL that we recently had open.
                     // Not a lot we can do to recover, and we're probably too deep to report
                     // a failure to the user.
                     Debug.WriteLine("Failed to reopen '" + lpp.DllPath + "': " + failMsg);
                     failed = true;
                     // continue on to the next one
-                } else {
+                }
+                else
+                {
                     Debug.WriteLine("  Reloaded " + lpp.ScriptIdent);
                 }
             }
@@ -211,25 +261,34 @@ namespace SourceGen.Sandbox {
         /// objects get discarded -- but I'm hoping that's due to a race condition that won't
         /// happen in normal circumstances (because of the keep-alives we send).
         /// </remarks>
-        private void CheckHealth() {
+        private void CheckHealth()
+        {
             Debug.Assert(DomainMgr != null);
-            try {
+            try
+            {
                 DomainMgr.PluginMgr.Ping(111);
-            } catch (RemotingException re) {
+            }
+            catch (Exception re)
+            {
                 Debug.WriteLine("Health check failed: " + re.Message);
                 RebootSandbox();
                 DomainMgr.PluginMgr.Ping(112);
             }
         }
 
-        public IPlugin GetInstance(string scriptIdent) {
-            if (DomainMgr == null) {
-                if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin)) {
+        public IPlugin GetInstance(string scriptIdent)
+        {
+            if (DomainMgr == null)
+            {
+                if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin))
+                {
                     return plugin;
                 }
                 Debug.Assert(false);
                 return null;
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 return DomainMgr.PluginMgr.GetPlugin(scriptIdent);
             }
@@ -239,16 +298,21 @@ namespace SourceGen.Sandbox {
         /// Generates a list of references to instances of loaded plugins.
         /// </summary>
         /// <returns>Newly-created list of plugin references.</returns>
-        public List<IPlugin> GetAllInstances() {
+        public List<IPlugin> GetAllInstances()
+        {
             Dictionary<string, IPlugin> dict;
-            if (DomainMgr == null) {
+            if (DomainMgr == null)
+            {
                 dict = mActivePlugins;
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 dict = DomainMgr.PluginMgr.GetActivePlugins();
             }
             List<IPlugin> list = new List<IPlugin>(dict.Count);
-            foreach (KeyValuePair<string, IPlugin> kvp in dict) {
+            foreach (KeyValuePair<string, IPlugin> kvp in dict)
+            {
                 list.Add(kvp.Value);
             }
             return list;
@@ -258,19 +322,25 @@ namespace SourceGen.Sandbox {
         /// Prepares all active scripts for action.
         /// </summary>
         /// <param name="appRef">Reference to object providing app services.</param>
-        public void PrepareScripts(IApplication appRef) {
+        public void PrepareScripts(IApplication appRef)
+        {
             List<PlSymbol> plSyms = GeneratePlSymbolList();
 
-            if (DomainMgr == null) {
+            if (DomainMgr == null)
+            {
                 AddressTranslate addrTrans = new AddressTranslate(mProject.AddrMap);
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
+                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                {
                     IPlugin ipl = kvp.Value;
                     ipl.Prepare(appRef, mProject.FileData, addrTrans);
-                    if (ipl is IPlugin_SymbolList) {
+                    if (ipl is IPlugin_SymbolList)
+                    {
                         ((IPlugin_SymbolList)ipl).UpdateSymbolList(plSyms);
                     }
                 }
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 int spanLength;
                 List<AddressMap.AddressMapEntry> addrEnts =
@@ -284,13 +354,18 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// Puts scripts back to sleep.
         /// </summary>
-        public void UnprepareScripts() {
-            if (DomainMgr == null) {
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
+        public void UnprepareScripts()
+        {
+            if (DomainMgr == null)
+            {
+                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                {
                     IPlugin ipl = kvp.Value;
                     ipl.Unprepare();
                 }
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 DomainMgr.PluginMgr.UnpreparePlugins();
             }
@@ -305,20 +380,26 @@ namespace SourceGen.Sandbox {
         /// This is called when a label is edited, so DisasmProject can decide whether it
         /// needs to re-run the code analyzer.
         /// </remarks>
-        public bool IsLabelSignificant(Symbol before, Symbol after) {
+        public bool IsLabelSignificant(Symbol before, Symbol after)
+        {
             string labelBefore = (before == null) ? string.Empty : before.Label;
             string labelAfter = (after == null) ? string.Empty : after.Label;
-            if (DomainMgr == null) {
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
+            if (DomainMgr == null)
+            {
+                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                {
                     IPlugin ipl = kvp.Value;
                     if (ipl is IPlugin_SymbolList &&
                             ((IPlugin_SymbolList)ipl).IsLabelSignificant(labelBefore,
-                                labelAfter)) {
+                                labelAfter))
+                    {
                         return true;
                     }
                 }
                 return false;
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 return DomainMgr.PluginMgr.IsLabelSignificant(labelBefore, labelAfter);
             }
@@ -331,25 +412,30 @@ namespace SourceGen.Sandbox {
         /// Remember that we need to set this up before code analysis runs, so many of the
         /// secondary data structures (like Anattribs) won't be available.
         /// </remarks>
-        private List<PlSymbol> GeneratePlSymbolList() {
+        private List<PlSymbol> GeneratePlSymbolList()
+        {
             List<PlSymbol> plSymbols = new List<PlSymbol>();
             SymbolTable symTab = mProject.SymbolTable;
 
             // UserLabels maps offset to Symbol.  Create the reverse mapping.
             Dictionary<Symbol, int> symbolOffsets =
                 new Dictionary<Symbol, int>(mProject.UserLabels.Count);
-            foreach (KeyValuePair<int, Symbol> kvp in mProject.UserLabels) {
+            foreach (KeyValuePair<int, Symbol> kvp in mProject.UserLabels)
+            {
                 symbolOffsets[kvp.Value] = kvp.Key;
             }
 
             // Add in the address region pre-labels.
             IEnumerator<AddressMap.AddressChange> addrIter = mProject.AddrMap.AddressChangeIterator;
-            while (addrIter.MoveNext()) {
+            while (addrIter.MoveNext())
+            {
                 AddressMap.AddressChange change = addrIter.Current;
-                if (!change.IsStart) {
+                if (!change.IsStart)
+                {
                     continue;
                 }
-                if (change.Region.HasValidPreLabel) {
+                if (change.Region.HasValidPreLabel)
+                {
                     Symbol newSym = new Symbol(change.Region.PreLabel,
                         change.Region.PreLabelAddress, Symbol.Source.AddrPreLabel,
                         Symbol.Type.ExternalAddr, Symbol.LabelAnnotation.None);
@@ -357,19 +443,23 @@ namespace SourceGen.Sandbox {
                 }
             }
 
-            foreach (Symbol sym in symTab) {
+            foreach (Symbol sym in symTab)
+            {
                 PlSymbol.Source plsSource;
                 int symOff, offset = -1;
-                switch (sym.SymbolSource) {
+                switch (sym.SymbolSource)
+                {
                     case Symbol.Source.User:
                         plsSource = PlSymbol.Source.User;
-                        if (symbolOffsets.TryGetValue(sym, out symOff)) {
+                        if (symbolOffsets.TryGetValue(sym, out symOff))
+                        {
                             offset = symOff;
                         }
                         break;
                     case Symbol.Source.AddrPreLabel:
                         plsSource = PlSymbol.Source.AddrPreLabel;
-                        if (symbolOffsets.TryGetValue(sym, out symOff)) {
+                        if (symbolOffsets.TryGetValue(sym, out symOff))
+                        {
                             offset = symOff;
                         }
                         break;
@@ -388,7 +478,8 @@ namespace SourceGen.Sandbox {
                         continue;
                 }
                 PlSymbol.Type plsType;
-                switch (sym.SymbolType) {
+                switch (sym.SymbolType)
+                {
                     case Symbol.Type.NonUniqueLocalAddr:
                         // don't forward these to plugins
                         continue;
@@ -408,7 +499,8 @@ namespace SourceGen.Sandbox {
 
                 int width = -1;
                 string tag = string.Empty;
-                if (sym is DefSymbol) {
+                if (sym is DefSymbol)
+                {
                     DefSymbol defSym = sym as DefSymbol;
                     width = defSym.DataDescriptor.Length;
                     tag = defSym.Tag;
@@ -443,15 +535,20 @@ namespace SourceGen.Sandbox {
         /// Returns a list of loaded plugins.  Callers should not retain this list, as the
         /// set can change due to user activity.
         /// </summary>
-        public Dictionary<string, IPlugin> GetActivePlugins() {
-            if (DomainMgr == null) {
+        public Dictionary<string, IPlugin> GetActivePlugins()
+        {
+            if (DomainMgr == null)
+            {
                 // copy the contents
                 Dictionary<string, IPlugin> pdict = new Dictionary<string, IPlugin>();
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
+                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                {
                     pdict.Add(kvp.Key, kvp.Value);
                 }
                 return pdict;
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 return DomainMgr.PluginMgr.GetActivePlugins();
             }
@@ -461,20 +558,26 @@ namespace SourceGen.Sandbox {
         /// For debugging purposes, get some information about the currently loaded
         /// extension scripts.
         /// </summary>
-        public string DebugGetLoadedScriptInfo() {
+        public string DebugGetLoadedScriptInfo()
+        {
             StringBuilder sb = new StringBuilder();
-            if (DomainMgr == null) {
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
+            if (DomainMgr == null)
+            {
+                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                {
                     string loc = kvp.Value.GetType().Assembly.Location;
                     sb.Append("[main] ");
                     sb.Append(loc);
                     sb.Append("\r\n  ");
                     DebugGetScriptInfo(kvp.Value, sb);
                 }
-            } else {
+            }
+            else
+            {
                 CheckHealth();
                 Dictionary<string, IPlugin> plugins = DomainMgr.PluginMgr.GetActivePlugins();
-                foreach (IPlugin plugin in plugins.Values) {
+                foreach (IPlugin plugin in plugins.Values)
+                {
                     string loc = DomainMgr.PluginMgr.GetPluginAssemblyLocation(plugin);
                     sb.AppendFormat("[sub {0}] ", DomainMgr.Id);
                     sb.Append(loc);
@@ -485,28 +588,36 @@ namespace SourceGen.Sandbox {
 
             return sb.ToString();
         }
-        private void DebugGetScriptInfo(IPlugin plugin, StringBuilder sb) {
+        private void DebugGetScriptInfo(IPlugin plugin, StringBuilder sb)
+        {
             sb.Append(plugin.Identifier);
             sb.Append(":");
 
             // The plugin is actually a MarshalByRefObject, so we can't use reflection
             // to gather the list of interfaces.
             // TODO(maybe): add a call that does a reflection query on the remote side
-            if (plugin is PluginCommon.IPlugin_SymbolList) {
+            if (plugin is PluginCommon.IPlugin_SymbolList)
+            {
                 sb.Append(" SymbolList");
             }
-            if (plugin is PluginCommon.IPlugin_InlineJsr) {
+            if (plugin is PluginCommon.IPlugin_InlineJsr)
+            {
                 sb.Append(" InlineJsr");
             }
-            if (plugin is PluginCommon.IPlugin_InlineJsl) {
+            if (plugin is PluginCommon.IPlugin_InlineJsl)
+            {
                 sb.Append(" InlineJsl");
             }
-            if (plugin is PluginCommon.IPlugin_InlineBrk) {
+            if (plugin is PluginCommon.IPlugin_InlineBrk)
+            {
                 sb.Append(" InlineBrk");
             }
-            if (plugin is PluginCommon.IPlugin_Visualizer_v2) {
+            if (plugin is PluginCommon.IPlugin_Visualizer_v2)
+            {
                 sb.Append(" Visualizer2");
-            } else if (plugin is PluginCommon.IPlugin_Visualizer) {
+            }
+            else if (plugin is PluginCommon.IPlugin_Visualizer)
+            {
                 sb.Append(" Visualizer");
             }
             sb.Append("\r\n");

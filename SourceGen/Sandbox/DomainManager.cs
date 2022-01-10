@@ -16,18 +16,53 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.Remoting.Lifetime;
+//using System.Runtime.Remoting.Lifetime;
 using System.Security;
 using System.Security.Permissions;
 using System.Timers;
 using PluginCommon;
 
-namespace SourceGen.Sandbox {
+namespace SourceGen.Sandbox
+{
+
+    public interface IDomainManager : IDisposable
+    {
+        int Id { get; }
+        PluginManager PluginMgr { get; }
+
+        void CreateDomain(string appDomainName, string appBaseBath);
+    }
+
+#pragma warning disable IDE0060 // Remove unused parameter
+    public class DomainManager : IDomainManager
+    {
+        public int Id => 1;
+
+        public PluginManager PluginMgr { get; }
+
+        public DomainManager(bool useKeepAlive)
+        {
+            PluginMgr = new PluginManager();
+        }
+
+        public void CreateDomain(string appDomainName, string appBaseBath)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+#pragma warning restore IDE0060 // Remove unused parameter
+
+#if false
     /// <summary>
     /// This is a host-side object that manages the plugin AppDomain.
     /// </summary>
     //[SecurityPermission(SecurityAction.LinkDemand, ControlAppDomain = true, Infrastructure = true)]
-    public class DomainManager : IDisposable {
+    public class DomainManager : IDomainManager
+    {
         /// <summary>
         /// For IDisposable.
         /// </summary>
@@ -51,8 +86,10 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// Access the remote PluginManager object.
         /// </summary>
-        public PluginManager PluginMgr {
-            get {
+        public PluginManager PluginMgr
+        {
+            get
+            {
                 //Debug.Assert(mPluginManager.CheckLease());
                 return mPluginManager.Instance;
             }
@@ -64,7 +101,8 @@ namespace SourceGen.Sandbox {
         public int Id { get { return mAppDomain != null ? mAppDomain.Id : -1; } }
 
 
-        public DomainManager(bool useKeepAlive) {
+        public DomainManager(bool useKeepAlive)
+        {
             // Sometimes the sandbox AppDomain can't call back into the main AppDomain to
             // get a lease renewal, and the PluginManager object gets collected.  See
             // https://stackoverflow.com/q/52230527/294248 for details.
@@ -75,20 +113,25 @@ namespace SourceGen.Sandbox {
             // The timer event runs on a pool thread, and calls across domains seem to stay
             // on the same thread, so the remote Ping() method must be prepared to be called
             // on an arbitrary thread.
-            if (useKeepAlive) {
+            if (useKeepAlive)
+            {
                 Debug.WriteLine("Setting keep-alive timer...");
                 mKeepAliveTimer = new Timer(60 * 1000);
-                mKeepAliveTimer.Elapsed += (source, e) => {
+                mKeepAliveTimer.Elapsed += (source, e) =>
+                {
                     // I don't know if there's a shutdown race.  The dispose code stops the timer
                     // before clearing the other fields, but I don't know if the Stop() code
                     // waits for the currently-executing timer event to finish.  So wrap
                     // everything in try/catch.
-                    try {
+                    try
+                    {
                         int result = mPluginManager.Instance.Ping(1000);
                         Debug.WriteLine("KeepAlive tid=" +
                             System.Threading.Thread.CurrentThread.ManagedThreadId +
                             " result=" + result);
-                    } catch (Exception ex) {
+                    }
+                    catch (Exception ex)
+                    {
                         Debug.WriteLine("Keep-alive timer failed: " + ex.Message);
                     }
                 };
@@ -104,7 +147,8 @@ namespace SourceGen.Sandbox {
         /// </summary>
         /// <param name="appDomainName">The "friendly" name.</param>
         /// <param name="appBaseBath">Directory to use for ApplicationBase.</param>
-        public void CreateDomain(string appDomainName, string appBaseBath) {
+        public void CreateDomain(string appDomainName, string appBaseBath)
+        {
             // This doesn't seem to affect Sponsor.  Doing this over in the PluginManager
             // does have the desired effect, but requires unrestricted security.
             //LifetimeServices.LeaseTime = TimeSpan.FromSeconds(5);
@@ -112,7 +156,8 @@ namespace SourceGen.Sandbox {
             //LifetimeServices.RenewOnCallTime = TimeSpan.FromSeconds(2);
             //LifetimeServices.SponsorshipTimeout = TimeSpan.FromSeconds(1);
 
-            if (mAppDomain != null) {
+            if (mAppDomain != null)
+            {
                 throw new Exception("Domain already created");
             }
 
@@ -177,19 +222,23 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// Destroy the AppDomain.
         /// </summary>
-        private void DestroyDomain(bool disposing) {
+        private void DestroyDomain(bool disposing)
+        {
             Debug.WriteLine("Unloading AppDomain '" + mAppDomain.FriendlyName +
                 "', id=" + mAppDomain.Id + ", disposing=" + disposing);
-            if (mKeepAliveTimer != null) {
+            if (mKeepAliveTimer != null)
+            {
                 mKeepAliveTimer.Stop();
                 mKeepAliveTimer.Dispose();
                 mKeepAliveTimer = null;
             }
-            if (mPluginManager != null) {
+            if (mPluginManager != null)
+            {
                 mPluginManager.Dispose();
                 mPluginManager = null;
             }
-            if (mAppDomain != null) {
+            if (mAppDomain != null)
+            {
                 // We can't simply invoke AppDomain.Unload() from a finalizer.  The unload is
                 // handled by a thread that won't run at the same time as the finalizer thread,
                 // so if we got here through finalization we will deadlock.  Fortunately the
@@ -202,9 +251,12 @@ namespace SourceGen.Sandbox {
                 //
                 // So we use a workaround from https://stackoverflow.com/q/4064749/294248
                 // and invoke it asynchronously.
-                if (disposing) {
+                if (disposing)
+                {
                     AppDomain.Unload(mAppDomain);
-                } else {
+                }
+                else
+                {
                     new Action<AppDomain>(AppDomain.Unload).BeginInvoke(mAppDomain, null, null);
                 }
                 mAppDomain = null;
@@ -214,7 +266,8 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// Finalizer.  Required for IDisposable.
         /// </summary>
-        ~DomainManager() {
+        ~DomainManager()
+        {
             Debug.WriteLine("WARNING: DomainManager finalizer running (id=" +
                 (mAppDomain != null ? mAppDomain.Id.ToString() : "--") + ")");
             Dispose(false);
@@ -223,7 +276,8 @@ namespace SourceGen.Sandbox {
         /// <summary>
         /// Generic IDisposable implementation.
         /// </summary>
-        public void Dispose() {
+        public void Dispose()
+        {
             // Dispose of unmanaged resources (i.e. the AppDomain).
             Dispose(true);
             // Suppress finalization.
@@ -234,23 +288,29 @@ namespace SourceGen.Sandbox {
         /// Destroys the AppDomain, if one was created.
         /// </summary>
         /// <param name="disposing">True if called from Dispose(), false if from finalizer.</param>
-        protected virtual void Dispose(bool disposing) {
-            if (mDisposed) {
+        protected virtual void Dispose(bool disposing)
+        {
+            if (mDisposed)
+            {
                 return;
             }
 
-            if (disposing) {
+            if (disposing)
+            {
                 // Free *managed* objects here.  This is mostly an
                 // optimization, as such things will be disposed of
                 // eventually by the GC.
             }
 
             // Free unmanaged objects (i.e. the AppDomain).
-            if (mAppDomain != null) {
+            if (mAppDomain != null)
+            {
                 DestroyDomain(disposing);
             }
 
             mDisposed = true;
         }
     }
+#endif
+
 }
