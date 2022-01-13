@@ -8,4 +8,76 @@
     <ProjectReference Include="..\PluginCommon\PluginCommon.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="RuntimeData\Apple\A3-IO.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\A3-ROM.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\Apple1.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\Applesoft.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\C08x-DiskII.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\Cxxx-IO.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\DOS33.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\E0Cxxx-IO.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\E1Cxxx-IO.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\F8-ROM-nozp.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\F8-ROM.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\GSOS.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\IIgs-ROM.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\ProDOS8.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Apple\SOS.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Atari\2600.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Atari\Lynx.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Commodore\C128-Kernal.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Commodore\C64-Kernal.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Nintendo\NES.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Nintendo\SNES.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Oric\ATMOS-IO.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="RuntimeData\Oric\ATMOS-ROM.sym65">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -22,11 +22,13 @@ using System.Windows.Media.Imaging;
 
 using CommonUtil;
 
-namespace CommonWPF {
+namespace CommonWPF
+{
     /// <summary>
     /// Creates an animated GIF from a collection of bitmap frames.
     /// </summary>
-    public class AnimatedGifEncoder {
+    public class AnimatedGifEncoder
+    {
         // GIF signature + version.
         private static readonly byte[] GIF89A_SIGNATURE = new byte[] {
             (byte)'G', (byte)'I', (byte)'F', (byte)'8', (byte)'9', (byte)'a'
@@ -63,10 +65,12 @@ namespace CommonWPF {
         /// </summary>
         private List<BitmapFrame> Frames { get; set; }
 
-        private class MetaData {
+        private class MetaData
+        {
             public int DelayMsec { get; private set; }
 
-            public MetaData(int delayMsec) {
+            public MetaData(int delayMsec)
+            {
                 DelayMsec = delayMsec;
             }
         }
@@ -80,12 +84,14 @@ namespace CommonWPF {
         /// <summary>
         /// Constructor.
         /// </summary>
-        public AnimatedGifEncoder() {
+        public AnimatedGifEncoder()
+        {
             Frames = new List<BitmapFrame>();
             FrameData = new List<MetaData>();
         }
 
-        public void AddFrame(BitmapFrame frame, int delayMsec) {
+        public void AddFrame(BitmapFrame frame, int delayMsec)
+        {
             Frames.Add(frame);
             FrameData.Add(new MetaData(delayMsec));
         }
@@ -94,10 +100,12 @@ namespace CommonWPF {
         /// Converts the list of frames into an animated GIF, and writes it to the stream.
         /// </summary>
         /// <param name="stream">Output stream.</param>
-        public void Save(Stream stream, out int maxWidth, out int maxHeight) {
+        public void Save(Stream stream, out int maxWidth, out int maxHeight)
+        {
             maxWidth = maxHeight = -1;
 
-            if (Frames.Count == 0) {
+            if (Frames.Count == 0)
+            {
                 // nothing to do
                 Debug.Assert(false);
                 return;
@@ -108,10 +116,12 @@ namespace CommonWPF {
             // deal with the data compression.
             //
             List<UnpackedGif> gifs = new List<UnpackedGif>(Frames.Count);
-            foreach (BitmapFrame bf in Frames) {
+            foreach (BitmapFrame bf in Frames)
+            {
                 GifBitmapEncoder encoder = new GifBitmapEncoder();
                 encoder.Frames.Add(bf);
-                using (MemoryStream ms = new MemoryStream()) {
+                using (MemoryStream ms = new MemoryStream())
+                {
                     encoder.Save(ms);
                     // We're using GetBuffer() rather than ToArray() to avoid a copy.  One
                     // consequence of this choice is that the byte[] may be oversized.  Since
@@ -133,18 +143,22 @@ namespace CommonWPF {
             // TODO(maybe): add an arg to Save() that causes it to use the first bitmap's
             // palette as the global palette.
             //
-            foreach (UnpackedGif gif in gifs) {
+            foreach (UnpackedGif gif in gifs)
+            {
                 //gif.DebugDump();
 
-                if (maxWidth < gif.LogicalScreenWidth) {
+                if (maxWidth < gif.LogicalScreenWidth)
+                {
                     maxWidth = gif.LogicalScreenWidth;
                 }
-                if (maxHeight < gif.LogicalScreenHeight) {
+                if (maxHeight < gif.LogicalScreenHeight)
+                {
                     maxHeight = gif.LogicalScreenHeight;
                 }
             }
 
-            if (maxWidth < 0 || maxHeight < 0) {
+            if (maxWidth < 0 || maxHeight < 0)
+            {
                 Debug.WriteLine("Unable to determine correct width/height");
                 return;
             }
@@ -165,7 +179,8 @@ namespace CommonWPF {
             stream.WriteByte(0);            // end of block
 
             Debug.Assert(gifs.Count == FrameData.Count);
-            for (int i = 0; i < Frames.Count; i++) {
+            for (int i = 0; i < Frames.Count; i++)
+            {
                 UnpackedGif gif = gifs[i];
                 MetaData md = FrameData[i];
 
@@ -174,13 +189,18 @@ namespace CommonWPF {
 
                 byte colorTableSize;
                 byte[] colorTable;
-                if (grb.LocalColorTableFlag) {
+                if (grb.LocalColorTableFlag)
+                {
                     colorTableSize = grb.LocalColorTableSize;
                     colorTable = grb.LocalColorTable;
-                } else if (gif.GlobalColorTableFlag) {
+                }
+                else if (gif.GlobalColorTableFlag)
+                {
                     colorTableSize = gif.GlobalColorTableSize;
                     colorTable = gif.GlobalColorTable;
-                } else {
+                }
+                else
+                {
                     Debug.Assert(false);
                     colorTableSize = 0x07;
                     colorTable = new byte[256 * 3];     // a whole lotta black
@@ -195,7 +215,8 @@ namespace CommonWPF {
                 bool userInputFlag = false;
                 bool transparencyFlag = false;
                 byte transparentColorIndex = 0;
-                if (gce != null) {
+                if (gce != null)
+                {
                     //disposalMethod = gce.DisposalMethod;
                     userInputFlag = gce.UserInputFlag;
                     transparencyFlag = gce.TransparencyFlag;
@@ -229,7 +250,8 @@ namespace CommonWPF {
             stream.WriteByte(UnpackedGif.GIF_TRAILER);
         }
 
-        private static void WriteLittleUshort(Stream stream, ushort val) {
+        private static void WriteLittleUshort(Stream stream, ushort val)
+        {
             stream.WriteByte((byte)val);
             stream.WriteByte((byte)(val >> 8));
         }
