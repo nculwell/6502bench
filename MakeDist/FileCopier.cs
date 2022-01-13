@@ -20,8 +20,10 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows.Media;
 
-namespace MakeDist {
-    public class FileCopier {
+namespace MakeDist
+{
+    public class FileCopier
+    {
         private const string SOURCEGEN_DIRNAME = "SourceGen";
 
         /// <summary>
@@ -29,7 +31,8 @@ namespace MakeDist {
         /// </summary>
         public enum BuildType { Unknown, Release, Debug };
 
-        private enum SourceFileSpec {
+        private enum SourceFileSpec
+        {
             Unknown = 0,
             All,
             List,
@@ -38,7 +41,8 @@ namespace MakeDist {
             NotBins,
         }
 
-        private class CopySpec {
+        private class CopySpec
+        {
             public string SourceDir { get; private set; }
             public string DestDir { get; private set; }
             public SourceFileSpec FileSpec { get; private set; }
@@ -46,7 +50,8 @@ namespace MakeDist {
             public string[] FileList { get; private set; }
 
             public CopySpec(string srcDir, string dstDir, SourceFileSpec spec, bool recursive,
-                    string[] fileList) {
+                    string[] fileList)
+            {
                 SourceDir = srcDir;
                 DestDir = dstDir;
                 FileSpec = spec;
@@ -55,7 +60,7 @@ namespace MakeDist {
             }
         }
 
-        private static CopySpec[] sMainSpec = {
+        private static readonly CopySpec[] sMainSpec = {
             new CopySpec(".", ".",
                 SourceFileSpec.List, false, new string[] { "README.md" }),
             new CopySpec("Asm65/bin/{BUILD_TYPE}/netstandard2.0/", ".",
@@ -90,7 +95,17 @@ namespace MakeDist {
                 SourceFileSpec.All, false, null),
         };
 
-        private static string sBasePath;
+        private static string? sBasePath = null;
+
+        private static string BasePath
+        {
+            get
+            {
+                if (sBasePath is null)
+                    sBasePath = FindBasePath();
+                return sBasePath;
+            }
+        }
 
         // We want all of the regression test binaries, plus the .sym65, .dis65, and .cs,
         // but nothing with an underscore in the part before the extension.
@@ -100,15 +115,17 @@ namespace MakeDist {
 
         private BuildType mBuildType;
         private bool mCopyTestFiles;
-        private BackgroundWorker mWorker;
+        private BackgroundWorker? mWorker;
 
 
-        public FileCopier(BuildType buildType, bool copyTestFiles) {
+        public FileCopier(BuildType buildType, bool copyTestFiles)
+        {
             mBuildType = buildType;
             mCopyTestFiles = copyTestFiles;
         }
 
-        private void ReportProgress(string msg) {
+        private void ReportProgress(string msg)
+        {
             mWorker.ReportProgress(0, new CopyProgress.ProgressMessage(msg + "\r\n"));
             // This allows the RichTextBox, which appears to be updated by a low-priority thread,
             // to update while we run.  If we don't sleep, the window doesn't update until the
@@ -116,11 +133,13 @@ namespace MakeDist {
             System.Threading.Thread.Sleep(5);
         }
 
-        private void ReportProgress(string msg, Color color) {
+        private void ReportProgress(string msg, Color color)
+        {
             mWorker.ReportProgress(0, new CopyProgress.ProgressMessage(msg + "\r\n", color));
         }
 
-        private void ReportErrMsg(string msg) {
+        private void ReportErrMsg(string msg)
+        {
             ReportProgress(msg + "\r\n", Colors.Red);
         }
 
@@ -129,7 +148,8 @@ namespace MakeDist {
         /// </summary>
         /// <param name="worker">Background task interface object.</param>
         /// <returns>True on success.</returns>
-        public bool CopyAllFiles(BackgroundWorker worker) {
+        public bool CopyAllFiles(BackgroundWorker worker)
+        {
             mWorker = worker;
 
             ReportProgress("Preparing... build type is " + mBuildType + ", test files are " +
@@ -137,17 +157,19 @@ namespace MakeDist {
             ReportProgress(""); // the first CRLF is ignored by RichTextBox??
 
             string buildStr = mBuildType.ToString();
-            string basePath = FindBasePath();
-            Debug.Assert(basePath != null);
+            string basePath = BasePath;
             string distPath = Path.Combine(basePath, "DIST_" + buildStr);
 
             // TODO(maybe): recursively delete distPath
 
-            if (!CopySpecList(sMainSpec, basePath, distPath, buildStr)) {
+            if (!CopySpecList(sMainSpec, basePath, distPath, buildStr))
+            {
                 return false;
             }
-            if (mCopyTestFiles) {
-                if (!CopySpecList(sTestSpec, basePath, distPath, buildStr)) {
+            if (mCopyTestFiles)
+            {
+                if (!CopySpecList(sTestSpec, basePath, distPath, buildStr))
+                {
                     return false;
                 }
             }
@@ -157,15 +179,18 @@ namespace MakeDist {
         }
 
         private bool CopySpecList(CopySpec[] specList, string basePath, string distPath,
-                string buildStr) {
-            foreach (CopySpec cs in specList) {
+                string buildStr)
+        {
+            foreach (CopySpec cs in specList)
+            {
                 string srcDir = Path.GetFullPath(Path.Combine(basePath,
                     cs.SourceDir.Replace("{BUILD_TYPE}", buildStr)));
                 string dstDir = Path.GetFullPath(Path.Combine(distPath, cs.DestDir));
 
                 ReportProgress("Scanning [" + cs.FileSpec + "] " + srcDir);
 
-                if (!CopyBySpec(srcDir, dstDir, cs.FileSpec, cs.FileList, cs.IsRecursive)) {
+                if (!CopyBySpec(srcDir, dstDir, cs.FileSpec, cs.FileList, cs.IsRecursive))
+                {
                     return false;
                 }
             }
@@ -174,23 +199,30 @@ namespace MakeDist {
         }
 
         private bool CopyBySpec(string srcDir, string dstDir, SourceFileSpec sfspec,
-                string[] specFileList, bool isRecursive) {
-            if (!EnsureDirectoryExists(dstDir)) {
+                string[] specFileList, bool isRecursive)
+        {
+            if (!EnsureDirectoryExists(dstDir))
+            {
                 return false;
             }
 
             string[] fileList;
-            if (sfspec == SourceFileSpec.List) {
+            if (sfspec == SourceFileSpec.List)
+            {
                 fileList = specFileList;
-            } else {
+            }
+            else
+            {
                 fileList = Directory.GetFiles(srcDir);
             }
 
-            foreach (string str in fileList) {
+            foreach (string str in fileList)
+            {
                 // Spec list is filenames, GetFiles is paths; convert to simple filename.
                 string fileName = Path.GetFileName(str);
 
-                switch (sfspec) {
+                switch (sfspec)
+                {
                     case SourceFileSpec.All:
                     case SourceFileSpec.List:
                         // keep all
@@ -198,24 +230,28 @@ namespace MakeDist {
                     case SourceFileSpec.NotBins:
                         // Mostly this means "skip obj and bin dirs", which happens later.
                         // Rather than specify everything we do want, just omit this one thing.
-                        if (fileName == "RuntimeData.csproj") {
+                        if (fileName == "RuntimeData.csproj")
+                        {
                             continue;
                         }
                         break;
                     case SourceFileSpec.AsmSources:
                         // Need the sources and the ca65 config files.
                         if (!(fileName.ToUpperInvariant().EndsWith(".S") ||
-                                !fileName.ToUpperInvariant().EndsWith("_cc65.cfg"))) {
+                                !fileName.ToUpperInvariant().EndsWith("_cc65.cfg")))
+                        {
                             continue;
                         }
                         break;
                     case SourceFileSpec.RegressionTests:
                         MatchCollection matches = sTestCaseRegex.Matches(fileName);
-                        if (matches.Count != 1) {
+                        if (matches.Count != 1)
+                        {
                             continue;
                         }
                         // Skip project files. Could probably do this with regex... but why.
-                        if (fileName.StartsWith("1") && fileName.EndsWith(".dis65")) {
+                        if (fileName.StartsWith("1") && fileName.EndsWith(".dis65"))
+                        {
                             continue;
                         }
                         break;
@@ -225,24 +261,29 @@ namespace MakeDist {
 
                 string srcPath = Path.Combine(srcDir, fileName);
                 string dstPath = Path.Combine(dstDir, fileName);
-                if (!CopyFile(srcPath, dstPath)) {
+                if (!CopyFile(srcPath, dstPath))
+                {
                     return false;
                 }
             }
 
-            if (isRecursive) {
+            if (isRecursive)
+            {
                 string[] dirList = Directory.GetDirectories(srcDir);
 
-                foreach (string str in dirList) {
+                foreach (string str in dirList)
+                {
                     string dirFileName = Path.GetFileName(str);
                     if (sfspec == SourceFileSpec.NotBins &&
-                            (dirFileName == "obj" || dirFileName == "bin")) {
+                            (dirFileName == "obj" || dirFileName == "bin"))
+                    {
                         continue;
                     }
 
                     if (!CopyBySpec(Path.Combine(srcDir, dirFileName),
                             Path.Combine(dstDir, dirFileName),
-                            sfspec, specFileList, isRecursive)) {
+                            sfspec, specFileList, isRecursive))
+                    {
                         return false;
                     }
                 }
@@ -251,76 +292,97 @@ namespace MakeDist {
             return true;
         }
 
-        private bool EnsureDirectoryExists(string dirPath) {
-            if (Directory.Exists(dirPath)) {
+        private bool EnsureDirectoryExists(string dirPath)
+        {
+            if (Directory.Exists(dirPath))
+            {
                 return true;
             }
-            if (File.Exists(dirPath)) {
+            if (File.Exists(dirPath))
+            {
                 ReportErrMsg("File exists and is not directory: " + dirPath);
                 return false;
             }
-            try {
+            try
+            {
                 Directory.CreateDirectory(dirPath);
                 ReportProgress("  Created " + dirPath);
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 ReportErrMsg("Failed creating directory " + dirPath + ": " + ex.Message);
                 return false;
             }
             return true;
         }
 
-        private bool CopyFile(string srcPath, string dstPath) {
+        private bool CopyFile(string srcPath, string dstPath)
+        {
             // Poll cancel button.
-            if (mWorker.CancellationPending) {
+            if (mWorker.CancellationPending)
+            {
                 ReportErrMsg("Cancel\r\n");
                 return false;
             }
 
             ReportProgress("  Copy " + srcPath + " --> " + dstPath);
 
-            try {
+            try
+            {
                 File.Copy(srcPath, dstPath, true);
-            } catch (Exception ex) {
+            }
+            catch (Exception ex)
+            {
                 ReportErrMsg("Failed: " + ex.Message);
                 return false;
             }
             return true;
         }
 
+        static string SearchHigherDirs(string path, string searchForSubdir)
+        {
+            string? p = path;
+            while (true)
+            {
+                p = Path.GetDirectoryName(p);
+                if (p is null)
+                    throw new InvalidOperationException($"Unable to find subdir \"{searchForSubdir}\" in ancestor dirs of path: {path}");
+                string subdirPath = Path.Combine(p, searchForSubdir);
+                if (Directory.Exists(subdirPath))
+                    return p;
+            }
+        }
+
+        static string UpNDirs(int n, string path)
+        {
+            string? p = path;
+            for (int i = 0; i < n; i++)
+            {
+                p = Path.GetDirectoryName(p);
+                if (p is null)
+                    throw new InvalidOperationException($"Unable to find path {n} up from: " + path);
+            }
+            return p;
+        }
+
         /// <summary>
         /// Returns the base directory of the 6502bench installation.
         /// </summary>
         /// <returns></returns>
-        private static string FindBasePath() {
-            if (sBasePath != null) {
-                return sBasePath;
-            }
-
-            string exeName = Process.GetCurrentProcess().MainModule.FileName;
-            string baseDir = Path.GetDirectoryName(exeName);
-            if (string.IsNullOrEmpty(baseDir)) {
-                return null;
-            }
-
-            string tryPath;
+        private static string FindBasePath()
+        {
+            var assembly = System.Reflection.Assembly.GetExecutingAssembly();
+            string exePath = assembly.Location;
+            if (exePath is null)
+                throw new InvalidOperationException("EXE path is null.");
+            string? exeDir = Path.GetDirectoryName(exePath);
+            if (exeDir is null)
+                throw new InvalidOperationException("Unable to extract directory from EXE path: " + exePath);
 
             // Use the SourceGen directory as a sentinel.
-            tryPath = Path.Combine(baseDir, SOURCEGEN_DIRNAME);
-            if (Directory.Exists(tryPath)) {
-                sBasePath = Path.GetFullPath(tryPath);
-                return sBasePath;
-            }
-
-            string upThree = Path.GetDirectoryName(
-                Path.GetDirectoryName(Path.GetDirectoryName(baseDir)));
-            tryPath = Path.Combine(upThree, SOURCEGEN_DIRNAME);
-            if (Directory.Exists(tryPath)) {
-                sBasePath = Path.GetFullPath(upThree);
-                return sBasePath;
-            }
-
-            Debug.WriteLine("Unable to find RuntimeData dir near " + exeName);
-            return null;
+            string higherDir = SearchHigherDirs(exeDir, SOURCEGEN_DIRNAME);
+            return Path.GetFullPath(higherDir);
         }
+
     }
 }
