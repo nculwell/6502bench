@@ -18,21 +18,30 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Threading;
+
+// Info on plugins in .NET Core:
+// https://docs.microsoft.com/en-us/dotnet/core/tutorials/creating-app-with-plugin-support
+// https://docs.microsoft.com/en-us/dotnet/standard/assembly/unloadability
 
 using CommonUtil;
 
-namespace PluginCommon {
+namespace PluginCommon
+{
     /// <summary>
     /// Manages loaded plugins, in the "remote" AppDomain.
     /// </summary>
-    public sealed class PluginManager : MarshalByRefObject {
+    public sealed class PluginManager : MarshalByRefObject
+    {
         /// <summary>
         /// Collection of instances of active plugins, keyed by script identifier.  Other
         /// plugin assemblies may be present in the AppDomain, but have not been identified
         /// by the application as being of interest.
         /// </summary>
-        private Dictionary<string, IPlugin> mActivePlugins = new Dictionary<string, IPlugin>();
+        private readonly Dictionary<string, IPlugin> mActivePlugins = new();
+
+        private readonly AssemblyLoadContext mAssemblyLoadContext = new PluginAssemblyLoadContext();
 
         /// <summary>
         /// Reference to file data.
@@ -45,8 +54,9 @@ namespace PluginCommon {
         /// <summary>
         /// Constructor, invoked from CreateInstanceAndUnwrap().
         /// </summary>
-        public PluginManager() {
-            Debug.WriteLine("PluginManager ctor (id=" + AppDomain.CurrentDomain.Id + ")");
+        public PluginManager()
+        {
+            Debug.WriteLine("PluginManager ctor");
 
             mLastPing = DateTime.Now;
 
@@ -56,21 +66,25 @@ namespace PluginCommon {
             //prop.SetValue(null, TimeSpan.FromSeconds(30));
         }
 
-        ~PluginManager() {
-            Debug.WriteLine("~PluginManager (id=" + AppDomain.CurrentDomain.Id + ")");
-        }
+        //~PluginManager()
+        //{
+        //    Debug.WriteLine("~PluginManager");
+        //}
 
         /// <summary>
         /// Sets the file data to use for all plugins.
         /// 
-        /// The file data argument will be an AppDomain-local copy of the data, made by the
-        /// argument marshalling code.  So plugins can scribble all over it without trashing
-        /// the original.  We want to store it in PluginManager so we don't make a new copy
-        /// for each individual plugin.
+        /// We copy the input array rather than using the same reference. So
+        /// plugins can scribble all over it without trashing the original.  We
+        /// want to store it in PluginManager so we don't make a new copy for
+        /// each individual plugin.
         /// </summary>
         /// <param name="fileData">65xx code and data.</param>
-        public void SetFileData(byte[] fileData) {
-            mFileData = fileData;
+        public void SetFileData(byte[] fileData)
+        {
+            byte[] copyOfFileData = new byte[fileData.Length];
+            Array.Copy(fileData, copyOfFileData, fileData.Length);
+            mFileData = copyOfFileData;
         }
 
         /// <summary>
@@ -79,7 +93,8 @@ namespace PluginCommon {
         /// <remarks>
         /// This is used for keep-alives and health checks, so it may be called frequently.
         /// </remarks>
-        public int Ping(int val) {
+        public int Ping(int val)
+        {
             //Debug.WriteLine("PluginManager Ping tid=" + Thread.CurrentThread.ManagedThreadId +
             //    " (id=" + AppDomain.CurrentDomain.Id + "): " + val);
             int result = (int)(DateTime.Now - mLastPing).TotalSeconds;
@@ -95,40 +110,49 @@ namespace PluginCommon {
         /// <param name="dllPath">Full path to compiled assembly.</param>
         /// <param name="scriptIdent">Identifier to use in e.g. GetPlugin().</param>
         /// <returns>Reference to plugin instance.</returns>
-        public IPlugin LoadPlugin(string dllPath, string scriptIdent, out string failMsg) {
-            if (mActivePlugins.TryGetValue(dllPath, out IPlugin ip)) {
+        public IPlugin LoadPlugin(string dllPath, string scriptIdent, out string failMsg)
+        {
+            if (mActivePlugins.TryGetValue(dllPath, out IPlugin ip))
+            {
                 Debug.WriteLine("PM: returning cached plugin for " + dllPath);
                 failMsg = string.Empty;
                 return ip;
             }
 
-            Assembly asm = Assembly.LoadFile(dllPath);
+            Assembly asm = mAssemblyLoadContext.LoadFromAssemblyPath(dllPath);
 
-            foreach (Type type in asm.GetExportedTypes()) {
-                // Using a System.Linq extension method.
+            foreach (Type type in asm.GetExportedTypes())
+            {
                 if (type.IsClass && !type.IsAbstract &&
-                    type.GetInterfaces().Contains(typeof(IPlugin))) {
-
+                    type.GetInterfaces().Contains(typeof(IPlugin)))
+                {
                     ConstructorInfo ctor = type.GetConstructor(Type.EmptyTypes);
-                    IPlugin iplugin;
-                    try {
-                        iplugin = (IPlugin)ctor.Invoke(null);
-                    } catch (Exception ex) {
-                        if (ex.InnerException != null) {
+                    IPlugin plugin;
+                    try
+                    {
+                        plugin = (IPlugin)ctor.Invoke(null);
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex.InnerException != null)
+                        {
                             failMsg = ex.InnerException.Message;
-                        } else {
+                        }
+                        else
+                        {
                             failMsg = ex.Message;
                         }
                         Debug.WriteLine("LoadPlugin: failed to load '" + scriptIdent + "': "
                             + failMsg);
                         return null;
                     }
-                    Debug.WriteLine("PM created instance: " + iplugin);
-                    mActivePlugins.Add(scriptIdent, iplugin);
+                    Debug.WriteLine("PM created instance: " + plugin);
+                    mActivePlugins.Add(scriptIdent, plugin);
                     failMsg = string.Empty;
-                    return iplugin;
+                    return plugin;
                 }
             }
+
             throw new Exception("No IPlugin class found in " + dllPath);
         }
 
@@ -137,8 +161,10 @@ namespace PluginCommon {
         /// </summary>
         /// <param name="scriptIdent">Script identifier that was passed to LoadPlugin().</param>
         /// <returns>Reference to instance of plugin.</returns>
-        public IPlugin GetPlugin(string scriptIdent) {
-            if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin)) {
+        public IPlugin GetPlugin(string scriptIdent)
+        {
+            if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin))
+            {
                 return plugin;
             }
             return null;
@@ -147,7 +173,8 @@ namespace PluginCommon {
         /// <summary>
         /// Returns a string with the assembly's location.
         /// </summary>
-        public string GetPluginAssemblyLocation(IPlugin plugin) {
+        public string GetPluginAssemblyLocation(IPlugin plugin)
+        {
             return plugin.GetType().Assembly.Location;
         }
 
@@ -155,15 +182,11 @@ namespace PluginCommon {
         /// Generates a list of references to instances of active plugins.
         /// </summary>
         /// <returns>Newly-created list of plugin references.</returns>
-        public Dictionary<string, IPlugin> GetActivePlugins() {
-            Dictionary<string, IPlugin> dict =
-                new Dictionary<string, IPlugin>(mActivePlugins.Count);
-            foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
-                // copy the contents; probably not necessary across AppDomain
-                dict.Add(kvp.Key, kvp.Value);
-            }
-            Debug.WriteLine("PluginManager: returning " + dict.Count + " plugins (id=" +
-                AppDomain.CurrentDomain.Id + ")");
+        public IReadOnlyDictionary<string, IPlugin> GetActivePlugins()
+        {
+            // TODO: Shouldn't need this to be copied since it's now read-only.
+            var dict = new Dictionary<string, IPlugin>(mActivePlugins);
+            Debug.WriteLine("PluginManager: returning " + dict.Count + " plugins.");
             return dict;
         }
 
@@ -171,7 +194,9 @@ namespace PluginCommon {
         /// Clears the list of loaded plugins.  This does not unload the assemblies from
         /// the AppDomain.
         /// </summary>
-        public void ClearPluginList() {
+        public void ClearPluginList()
+        {
+            // TODO: Unload assemblies using AssemblyLoadContext.Unload
             mActivePlugins.Clear();
         }
 
@@ -183,17 +208,22 @@ namespace PluginCommon {
         /// <param name="addrEntries">Serialized AddressMap entries.</param>
         /// <param name="plSyms">SymbolTable contents, converted to PlSymbol.</param>
         public void PreparePlugins(IApplication appRef, int spanLength,
-                List<AddressMap.AddressMapEntry> addrEntries, List<PlSymbol> plSyms) {
-            AddressMap addrMap = new AddressMap(spanLength, addrEntries);
-            AddressTranslate addrTrans = new AddressTranslate(addrMap);
-            foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
-                IPlugin ipl = kvp.Value;
-                ipl.Prepare(appRef, mFileData, addrTrans);
-                if (ipl is IPlugin_SymbolList) {
-                    try {
-                        ((IPlugin_SymbolList)ipl).UpdateSymbolList(plSyms);
-                    } catch (Exception ex) {
-                        throw new Exception("Failed in UpdateSymbolList(" + kvp.Key + ")", ex);
+                List<AddressMap.AddressMapEntry> addrEntries, List<PlSymbol> plSyms)
+        {
+            var addrMap = new AddressMap(spanLength, addrEntries);
+            var addrTrans = new AddressTranslate(addrMap);
+            foreach (var plugin in mActivePlugins.Values)
+            {
+                plugin.Prepare(appRef, mFileData, addrTrans);
+                if (plugin is IPlugin_SymbolList symbolList)
+                {
+                    try
+                    {
+                        symbolList.UpdateSymbolList(plSyms);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception("Failed in UpdateSymbolList (" + symbolList + ")", ex);
                     }
                 }
             }
@@ -202,10 +232,11 @@ namespace PluginCommon {
         /// <summary>
         /// Invokes the Unprepare() method on all active plugins.
         /// </summary>
-        public void UnpreparePlugins() {
-            foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
-                IPlugin ipl = kvp.Value;
-                ipl.Unprepare();
+        public void UnpreparePlugins()
+        {
+            foreach (var plugin in mActivePlugins.Values)
+            {
+                plugin.Unprepare();
             }
         }
 
@@ -213,12 +244,13 @@ namespace PluginCommon {
         /// Returns true if any of the plugins report that the before or after label is
         /// significant.
         /// </summary>
-        public bool IsLabelSignificant(string labelBefore, string labelAfter) {
-            foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
-                IPlugin ipl = kvp.Value;
-                if (ipl is IPlugin_SymbolList &&
-                        ((IPlugin_SymbolList)ipl).IsLabelSignificant(labelBefore,
-                            labelAfter)) {
+        public bool IsLabelSignificant(string labelBefore, string labelAfter)
+        {
+            foreach (IPlugin plugin in mActivePlugins.Values)
+            {
+                if (plugin is IPlugin_SymbolList symbolList
+                    && symbolList.IsLabelSignificant(labelBefore, labelAfter))
+                {
                     return true;
                 }
             }

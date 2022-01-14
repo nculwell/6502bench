@@ -115,12 +115,12 @@ namespace CommonWPF
             // Step 1: convert all BitmapFrame objects to GIF.  This lets the .NET GIF encoder
             // deal with the data compression.
             //
-            List<UnpackedGif> gifs = new List<UnpackedGif>(Frames.Count);
+            var gifs = new List<UnpackedGif>(Frames.Count);
             foreach (BitmapFrame bf in Frames)
             {
-                GifBitmapEncoder encoder = new GifBitmapEncoder();
+                var encoder = new GifBitmapEncoder();
                 encoder.Frames.Add(bf);
-                using (MemoryStream ms = new MemoryStream())
+                using (var ms = new MemoryStream())
                 {
                     encoder.Save(ms);
                     // We're using GetBuffer() rather than ToArray() to avoid a copy.  One

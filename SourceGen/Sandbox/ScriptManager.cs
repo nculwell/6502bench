@@ -16,8 +16,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection;
-using System.Runtime.Remoting;
 using System.Text;
 
 using CommonUtil;
@@ -28,13 +28,13 @@ namespace SourceGen.Sandbox
 
     public interface IScriptManager
     {
-        DomainManager DomainMgr { get; }
-        bool UseMainAppDomain { get; }
+        //DomainManager DomainMgr { get; }
+        //bool UseMainAppDomain { get; }
 
-        void Cleanup();
+        //void Cleanup();
         void Clear();
         string DebugGetLoadedScriptInfo();
-        Dictionary<string, IPlugin> GetActivePlugins();
+        IReadOnlyDictionary<string, IPlugin> GetActivePlugins();
         List<IPlugin> GetAllInstances();
         IPlugin GetInstance(string scriptIdent);
         bool IsLabelSignificant(Symbol before, Symbol after);
@@ -61,18 +61,18 @@ namespace SourceGen.Sandbox
         /// </summary>
         public static bool UseKeepAliveHack { get; set; }
 
-        /// <summary>
-        /// If true, this ScriptManager is not using a DomainManager.
-        /// </summary>
-        public bool UseMainAppDomain
-        {
-            get { return DomainMgr == null; }
-        }
+        ///// <summary>
+        ///// If true, this ScriptManager is not using a DomainManager.
+        ///// </summary>
+        //public bool UseMainAppDomain
+        //{
+        //    get { return DomainMgr == null; }
+        //}
 
-        /// <summary>
-        /// Reference to DomainManager, if we're using one.
-        /// </summary>
-        public DomainManager DomainMgr { get; private set; }
+        ///// <summary>
+        ///// Reference to DomainManager, if we're using one.
+        ///// </summary>
+        //public DomainManager DomainMgr { get; private set; }
 
         /// <summary>
         /// Collection of loaded plugins, if we're not using a DomainManager.
@@ -109,25 +109,24 @@ namespace SourceGen.Sandbox
         {
             mProject = proj;
 
-            if (!proj.UseMainAppDomainForPlugins)
-            {
-                CreateDomainManager();
-            }
-            else
-            {
-                mActivePlugins = new Dictionary<string, IPlugin>();
-            }
+            //if (!proj.UseMainAppDomainForPlugins)
+            //{
+            //    CreateDomainManager();
+            //}
+            //else
+            //{
+            mActivePlugins = new Dictionary<string, IPlugin>();
+            //}
         }
 
-        private void CreateDomainManager()
-        {
-            // The project's UseMainAppDomainForPlugins value is theoretically mutable, so
-            // don't try to assert it here.
-            DomainMgr = new DomainManager(UseKeepAliveHack);
-            DomainMgr.CreateDomain("Plugin Domain", PluginDllCache.GetPluginDirPath());
-            DomainMgr.PluginMgr.SetFileData(mProject.FileData);
-
-        }
+        //private void CreateDomainManager()
+        //{
+        //    // The project's UseMainAppDomainForPlugins value is theoretically mutable, so
+        //    // don't try to assert it here.
+        //    DomainMgr = new DomainManager(UseKeepAliveHack);
+        //    DomainMgr.CreateDomain("Plugin Domain", PluginDllCache.GetPluginDirPath());
+        //    DomainMgr.PluginMgr.SetFileData(mProject.FileData);
+        //}
 
         /// <summary>
         /// Cleans up, discarding the AppDomain if one was created.  Do not continue to use
@@ -135,11 +134,11 @@ namespace SourceGen.Sandbox
         /// </summary>
         public void Cleanup()
         {
-            if (DomainMgr != null)
-            {
-                DomainMgr.Dispose();
-                DomainMgr = null;
-            }
+            //if (DomainMgr != null)
+            //{
+            //    DomainMgr.Dispose();
+            //    DomainMgr = null;
+            //}
             mActivePlugins = null;
             mProject = null;
         }
@@ -150,15 +149,15 @@ namespace SourceGen.Sandbox
         /// </summary>
         public void Clear()
         {
-            if (DomainMgr == null)
-            {
-                mActivePlugins.Clear();
-            }
-            else
-            {
-                CheckHealth();
-                DomainMgr.PluginMgr.ClearPluginList();
-            }
+            //if (DomainMgr == null)
+            //{
+            //    mActivePlugins.Clear();
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    DomainMgr.PluginMgr.ClearPluginList();
+            //}
             mLoadedPlugins.Clear();
         }
 
@@ -179,33 +178,31 @@ namespace SourceGen.Sandbox
                 return false;
             }
 
-            if (DomainMgr == null)
-            {
-                if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin))
-                {
-                    return true;
-                }
-                Assembly asm = Assembly.LoadFile(dllPath);
-                plugin = PluginDllCache.ConstructIPlugin(asm);
-                mActivePlugins.Add(scriptIdent, plugin);
-                report = new FileLoadReport(dllPath);       // empty report
+            //if (DomainMgr == null)
+            //{
+            if (mActivePlugins.ContainsKey(scriptIdent))
                 return true;
-            }
-            else
-            {
-                CheckHealth();
-                IPlugin plugin = DomainMgr.PluginMgr.LoadPlugin(dllPath, scriptIdent,
-                    out string failMsg);
-                if (plugin == null)
-                {
-                    report.Add(FileLoadItem.Type.Error, "Failed loading plugin: " + failMsg);
-                }
-                else
-                {
-                    mLoadedPlugins.Add(new LoadedPluginPath(scriptIdent, dllPath));
-                }
-                return plugin != null;
-            }
+            Assembly asm = Assembly.LoadFile(dllPath);
+            IPlugin plugin = PluginDllCache.ConstructIPlugin(asm);
+            mActivePlugins.Add(scriptIdent, plugin);
+            report = new FileLoadReport(dllPath);       // empty report
+            return true;
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    IPlugin plugin = DomainMgr.PluginMgr.LoadPlugin(dllPath, scriptIdent,
+            //        out string failMsg);
+            //    if (plugin == null)
+            //    {
+            //        report.Add(FileLoadItem.Type.Error, "Failed loading plugin: " + failMsg);
+            //    }
+            //    else
+            //    {
+            //        mLoadedPlugins.Add(new LoadedPluginPath(scriptIdent, dllPath));
+            //    }
+            //    return plugin != null;
+            //}
         }
 
         /// <summary>
@@ -215,83 +212,83 @@ namespace SourceGen.Sandbox
         /// <returns>True if no problems were encountered.</returns>
         public bool RebootSandbox()
         {
-            if (DomainMgr == null)
-            {
-                return false;
-            }
-            Debug.WriteLine("Rebooting sandbox...");
+            //if (DomainMgr == null)
+            //{
+            return false;
+            //}
+            //Debug.WriteLine("Rebooting sandbox...");
 
-            // Discard existing DomainManager, and create a new one.
-            DomainMgr.Dispose();
-            CreateDomainManager();
+            //// Discard existing DomainManager, and create a new one.
+            //DomainMgr.Dispose();
+            //CreateDomainManager();
 
-            bool failed = false;
+            //bool failed = false;
 
-            // Reload plugins.
-            foreach (LoadedPluginPath lpp in mLoadedPlugins)
-            {
-                IPlugin plugin = DomainMgr.PluginMgr.LoadPlugin(lpp.DllPath, lpp.ScriptIdent,
-                    out string failMsg);
-                if (plugin == null)
-                {
-                    // This is unexpected; we're opening a DLL that we recently had open.
-                    // Not a lot we can do to recover, and we're probably too deep to report
-                    // a failure to the user.
-                    Debug.WriteLine("Failed to reopen '" + lpp.DllPath + "': " + failMsg);
-                    failed = true;
-                    // continue on to the next one
-                }
-                else
-                {
-                    Debug.WriteLine("  Reloaded " + lpp.ScriptIdent);
-                }
-            }
+            //// Reload plugins.
+            //foreach (LoadedPluginPath lpp in mLoadedPlugins)
+            //{
+            //    IPlugin plugin = DomainMgr.PluginMgr.LoadPlugin(lpp.DllPath, lpp.ScriptIdent,
+            //        out string failMsg);
+            //    if (plugin == null)
+            //    {
+            //        // This is unexpected; we're opening a DLL that we recently had open.
+            //        // Not a lot we can do to recover, and we're probably too deep to report
+            //        // a failure to the user.
+            //        Debug.WriteLine("Failed to reopen '" + lpp.DllPath + "': " + failMsg);
+            //        failed = true;
+            //        // continue on to the next one
+            //    }
+            //    else
+            //    {
+            //        Debug.WriteLine("  Reloaded " + lpp.ScriptIdent);
+            //    }
+            //}
 
-            return failed;
+            //return failed;
         }
 
-        /// <summary>
-        /// Checks the health of the sandbox, and reboots it if it seems unhealthy.  Call this
-        /// before making any calls into plugins via DomainMgr.
-        /// </summary>
-        /// <remarks>
-        /// We're relying on the idea that, if the ping succeeds, the PluginManager instance
-        /// will continue to exist for a while.  There is some evidence to the contrary -- the
-        /// ping issued immediately after the machine wakes up succeeds right before the remote
-        /// objects get discarded -- but I'm hoping that's due to a race condition that won't
-        /// happen in normal circumstances (because of the keep-alives we send).
-        /// </remarks>
-        private void CheckHealth()
-        {
-            Debug.Assert(DomainMgr != null);
-            try
-            {
-                DomainMgr.PluginMgr.Ping(111);
-            }
-            catch (Exception re)
-            {
-                Debug.WriteLine("Health check failed: " + re.Message);
-                RebootSandbox();
-                DomainMgr.PluginMgr.Ping(112);
-            }
-        }
+        ///// <summary>
+        ///// Checks the health of the sandbox, and reboots it if it seems unhealthy.  Call this
+        ///// before making any calls into plugins via DomainMgr.
+        ///// </summary>
+        ///// <remarks>
+        ///// We're relying on the idea that, if the ping succeeds, the PluginManager instance
+        ///// will continue to exist for a while.  There is some evidence to the contrary -- the
+        ///// ping issued immediately after the machine wakes up succeeds right before the remote
+        ///// objects get discarded -- but I'm hoping that's due to a race condition that won't
+        ///// happen in normal circumstances (because of the keep-alives we send).
+        ///// </remarks>
+        //private void CheckHealth()
+        //{
+        //    Debug.Assert(DomainMgr != null);
+        //    try
+        //    {
+        //        DomainMgr.PluginMgr.Ping(111);
+        //    }
+        //    catch (Exception re)
+        //    {
+        //        Debug.WriteLine("Health check failed: " + re.Message);
+        //        RebootSandbox();
+        //        DomainMgr.PluginMgr.Ping(112);
+        //    }
+        //}
 
         public IPlugin GetInstance(string scriptIdent)
         {
-            if (DomainMgr == null)
+            //if (DomainMgr == null)
+            //{
+            if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin? plugin) && plugin != null)
             {
-                if (mActivePlugins.TryGetValue(scriptIdent, out IPlugin plugin))
-                {
-                    return plugin;
-                }
-                Debug.Assert(false);
-                return null;
+                return plugin;
             }
-            else
-            {
-                CheckHealth();
-                return DomainMgr.PluginMgr.GetPlugin(scriptIdent);
-            }
+            Debug.Assert(false);
+            return null;
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    return DomainMgr.PluginMgr.GetPlugin(scriptIdent);
+            //}
         }
 
         /// <summary>
@@ -300,22 +297,17 @@ namespace SourceGen.Sandbox
         /// <returns>Newly-created list of plugin references.</returns>
         public List<IPlugin> GetAllInstances()
         {
-            Dictionary<string, IPlugin> dict;
-            if (DomainMgr == null)
-            {
-                dict = mActivePlugins;
-            }
-            else
-            {
-                CheckHealth();
-                dict = DomainMgr.PluginMgr.GetActivePlugins();
-            }
-            List<IPlugin> list = new List<IPlugin>(dict.Count);
-            foreach (KeyValuePair<string, IPlugin> kvp in dict)
-            {
-                list.Add(kvp.Value);
-            }
-            return list;
+            IReadOnlyDictionary<string, IPlugin> dict;
+            //if (DomainMgr == null)
+            //{
+            dict = mActivePlugins;
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    dict = DomainMgr.PluginMgr.GetActivePlugins();
+            //}
+            return dict.Values.ToList();
         }
 
         /// <summary>
@@ -326,29 +318,29 @@ namespace SourceGen.Sandbox
         {
             List<PlSymbol> plSyms = GeneratePlSymbolList();
 
-            if (DomainMgr == null)
+            //if (DomainMgr == null)
+            //{
+            AddressTranslate addrTrans = new AddressTranslate(mProject.AddrMap);
+            foreach (IPlugin plugin in mActivePlugins.Values)
             {
-                AddressTranslate addrTrans = new AddressTranslate(mProject.AddrMap);
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                plugin.Prepare(appRef, mProject.FileData, addrTrans);
+                var symbolList = plugin as IPlugin_SymbolList;
+                if (symbolList != null)
                 {
-                    IPlugin ipl = kvp.Value;
-                    ipl.Prepare(appRef, mProject.FileData, addrTrans);
-                    if (ipl is IPlugin_SymbolList)
-                    {
-                        ((IPlugin_SymbolList)ipl).UpdateSymbolList(plSyms);
-                    }
+                    symbolList.UpdateSymbolList(plSyms);
                 }
             }
-            else
-            {
-                CheckHealth();
-                int spanLength;
-                List<AddressMap.AddressMapEntry> addrEnts =
-                    mProject.AddrMap.GetEntryList(out spanLength);
-                // TODO: if Prepare() throws an exception, we should catch it and report
-                //   it to the user.
-                DomainMgr.PluginMgr.PreparePlugins(appRef, spanLength, addrEnts, plSyms);
-            }
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    int spanLength;
+            //    List<AddressMap.AddressMapEntry> addrEnts =
+            //        mProject.AddrMap.GetEntryList(out spanLength);
+            //    // TODO: if Prepare() throws an exception, we should catch it and report
+            //    //   it to the user.
+            //    DomainMgr.PluginMgr.PreparePlugins(appRef, spanLength, addrEnts, plSyms);
+            //}
         }
 
         /// <summary>
@@ -356,19 +348,18 @@ namespace SourceGen.Sandbox
         /// </summary>
         public void UnprepareScripts()
         {
-            if (DomainMgr == null)
+            //if (DomainMgr == null)
+            //{
+            foreach (IPlugin plugin in mActivePlugins.Values)
             {
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
-                {
-                    IPlugin ipl = kvp.Value;
-                    ipl.Unprepare();
-                }
+                plugin.Unprepare();
             }
-            else
-            {
-                CheckHealth();
-                DomainMgr.PluginMgr.UnpreparePlugins();
-            }
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    DomainMgr.PluginMgr.UnpreparePlugins();
+            //}
         }
 
 
@@ -382,27 +373,26 @@ namespace SourceGen.Sandbox
         /// </remarks>
         public bool IsLabelSignificant(Symbol before, Symbol after)
         {
-            string labelBefore = (before == null) ? string.Empty : before.Label;
-            string labelAfter = (after == null) ? string.Empty : after.Label;
-            if (DomainMgr == null)
+            string labelBefore = before?.Label ?? "";
+            string labelAfter = after?.Label ?? "";
+            //if (DomainMgr == null)
+            //{
+            foreach (IPlugin plugin in mActivePlugins.Values)
             {
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
+                if (plugin is IPlugin_SymbolList &&
+                        ((IPlugin_SymbolList)plugin).IsLabelSignificant(labelBefore,
+                            labelAfter))
                 {
-                    IPlugin ipl = kvp.Value;
-                    if (ipl is IPlugin_SymbolList &&
-                            ((IPlugin_SymbolList)ipl).IsLabelSignificant(labelBefore,
-                                labelAfter))
-                    {
-                        return true;
-                    }
+                    return true;
                 }
-                return false;
             }
-            else
-            {
-                CheckHealth();
-                return DomainMgr.PluginMgr.IsLabelSignificant(labelBefore, labelAfter);
-            }
+            return false;
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    return DomainMgr.PluginMgr.IsLabelSignificant(labelBefore, labelAfter);
+            //}
         }
 
         /// <summary>
@@ -535,23 +525,19 @@ namespace SourceGen.Sandbox
         /// Returns a list of loaded plugins.  Callers should not retain this list, as the
         /// set can change due to user activity.
         /// </summary>
-        public Dictionary<string, IPlugin> GetActivePlugins()
+        public IReadOnlyDictionary<string, IPlugin> GetActivePlugins()
         {
-            if (DomainMgr == null)
-            {
-                // copy the contents
-                Dictionary<string, IPlugin> pdict = new Dictionary<string, IPlugin>();
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
-                {
-                    pdict.Add(kvp.Key, kvp.Value);
-                }
-                return pdict;
-            }
-            else
-            {
-                CheckHealth();
-                return DomainMgr.PluginMgr.GetActivePlugins();
-            }
+            //if (DomainMgr == null)
+            //{
+            // copy the contents
+            var pdict = new Dictionary<string, IPlugin>(mActivePlugins);
+            return pdict;
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    return DomainMgr.PluginMgr.GetActivePlugins();
+            //}
         }
 
         /// <summary>
@@ -561,33 +547,34 @@ namespace SourceGen.Sandbox
         public string DebugGetLoadedScriptInfo()
         {
             StringBuilder sb = new StringBuilder();
-            if (DomainMgr == null)
+            //if (DomainMgr == null)
+            //{
+            foreach (IPlugin plugin in mActivePlugins.Values)
             {
-                foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins)
-                {
-                    string loc = kvp.Value.GetType().Assembly.Location;
-                    sb.Append("[main] ");
-                    sb.Append(loc);
-                    sb.Append("\r\n  ");
-                    DebugGetScriptInfo(kvp.Value, sb);
-                }
+                string loc = plugin.GetType().Assembly.Location;
+                sb.Append("[main] ");
+                sb.Append(loc);
+                sb.Append("\r\n  ");
+                DebugGetScriptInfo(plugin, sb);
             }
-            else
-            {
-                CheckHealth();
-                Dictionary<string, IPlugin> plugins = DomainMgr.PluginMgr.GetActivePlugins();
-                foreach (IPlugin plugin in plugins.Values)
-                {
-                    string loc = DomainMgr.PluginMgr.GetPluginAssemblyLocation(plugin);
-                    sb.AppendFormat("[sub {0}] ", DomainMgr.Id);
-                    sb.Append(loc);
-                    sb.Append("\r\n  ");
-                    DebugGetScriptInfo(plugin, sb);
-                }
-            }
+            //}
+            //else
+            //{
+            //    CheckHealth();
+            //    var plugins = DomainMgr.PluginMgr.GetActivePlugins();
+            //    foreach (IPlugin plugin in plugins.Values)
+            //    {
+            //        string loc = DomainMgr.PluginMgr.GetPluginAssemblyLocation(plugin);
+            //        sb.AppendFormat("[sub {0}] ", DomainMgr.Id);
+            //        sb.Append(loc);
+            //        sb.Append("\r\n  ");
+            //        DebugGetScriptInfo(plugin, sb);
+            //    }
+            //}
 
             return sb.ToString();
         }
+
         private void DebugGetScriptInfo(IPlugin plugin, StringBuilder sb)
         {
             sb.Append(plugin.Identifier);

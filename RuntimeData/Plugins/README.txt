@@ -1,0 +1,1 @@
+﻿Place plugin assemblies here at runtime to make them available.

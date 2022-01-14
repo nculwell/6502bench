@@ -23,13 +23,15 @@ using Asm65;
 using CommonUtil;
 using SourceGen.Sandbox;
 
-namespace SourceGen {
+namespace SourceGen
+{
     /// <summary>
     /// All state for an open project.
     /// 
     /// This class does no file I/O or user interaction.
     /// </summary>
-    public class DisasmProject : IDisposable {
+    public class DisasmProject : IDisposable
+    {
         // Arbitrary 1MB limit.  Could be increased to 16MB if performance is acceptable.
         public const int MAX_DATA_FILE_SIZE = 1 << 20;
 
@@ -129,14 +131,16 @@ namespace SourceGen {
         /// offset, as that's expected to be used as the dictionary key.
         /// </summary>
         [Serializable]
-        public class RelocData {
+        public class RelocData
+        {
             public byte Width;      // width of area written by relocator (1-4 bytes)
             public sbyte Shift;     // amount to shift the value (usually 0 or -16)
             public int Value;       // value used (unshifted, full width)
 
             public RelocData() { }  // for deserialization
 
-            public RelocData(byte width, sbyte shift, int value) {
+            public RelocData(byte width, sbyte shift, int value)
+            {
                 Width = width;
                 Shift = shift;
                 Value = value;
@@ -216,7 +220,7 @@ namespace SourceGen {
         public SymbolTable SymbolTable { get; private set; }
 
         // Cross-reference data, indexed by file offset.
-        private Dictionary<int, XrefSet> mXrefs = new Dictionary<int, XrefSet>();
+        private Dictionary<int, XrefSet> mXrefs = new();
 
         // Project and platform symbols that are being referenced from code.
         public List<DefSymbol> ActiveDefSymbolList { get; private set; }
@@ -224,12 +228,14 @@ namespace SourceGen {
         // List of messages, mostly problems detected during analysis.
         public MessageList Messages { get; private set; }
 
-        public class CodeDataCounts {
+        public class CodeDataCounts
+        {
             public int CodeByteCount { get; set; }
             public int DataByteCount { get; set; }
             public int JunkByteCount { get; set; }
 
-            public void Reset() {
+            public void Reset()
+            {
                 CodeByteCount = DataByteCount = JunkByteCount = 0;
             }
         }
@@ -262,7 +268,8 @@ namespace SourceGen {
         /// match the length of the data file.  The data file may not have been loaded yet
         /// (e.g. when deserializing a project file).
         /// </summary>
-        public void Initialize(int fileDataLen) {
+        public void Initialize(int fileDataLen)
+        {
             Debug.Assert(FileDataLength == 0);      // i.e. Initialize() hasn't run yet
             Debug.Assert(fileDataLen > 0);
 
@@ -282,7 +289,8 @@ namespace SourceGen {
             Comments = new string[fileDataLen];
 
             // Populate with empty strings so we don't have to worry about null refs.
-            for (int i = 0; i < Comments.Length; i++) {
+            for (int i = 0; i < Comments.Length; i++)
+            {
                 Comments[i] = string.Empty;
             }
 
@@ -315,20 +323,24 @@ namespace SourceGen {
         /// <summary>
         /// Discards resources, notably the sandbox AppDomain.
         /// </summary>
-        public void Cleanup() {
+        public void Cleanup()
+        {
             Debug.WriteLine("DisasmProject.Cleanup(): scriptMgr=" + mScriptManager);
-            if (mScriptManager != null) {
+            if (mScriptManager != null)
+            {
                 mScriptManager.Cleanup();
                 mScriptManager = null;
             }
         }
 
         // IDisposable generic finalizer.
-        ~DisasmProject() {
+        ~DisasmProject()
+        {
             Dispose(false);
         }
         // IDisposable generic Dispose() implementation.
-        public void Dispose() {
+        public void Dispose()
+        {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
@@ -336,7 +348,8 @@ namespace SourceGen {
         /// Confirms that Cleanup() was called.  This is just a behavior check; the
         /// destructor is not required for correct behavior.
         /// </summary>
-        protected virtual void Dispose(bool disposing) {
+        protected virtual void Dispose(bool disposing)
+        {
             //Debug.WriteLine("DisasmProject Dispose(" + disposing + ")");
             Debug.Assert(mScriptManager == null, "DisasmProject.Cleanup was not called");
         }
@@ -347,7 +360,8 @@ namespace SourceGen {
         /// <param name="fileData">65xx data file contents.</param>
         /// <param name="dataFileName">Data file's filename (not pathname).  Only used for
         ///   cosmetic stuff, e.g. exporting to text; not stored in project.</param>
-        public void PrepForNew(byte[] fileData, string dataFileName) {
+        public void PrepForNew(byte[] fileData, string dataFileName)
+        {
             Debug.Assert(fileData.Length == FileDataLength);
 
             mFileData = fileData;
@@ -367,7 +381,8 @@ namespace SourceGen {
         /// to the project.  Call this after LoadDataFile() for a new project.
         /// </summary>
         /// <param name="sysDef">Target system definition.</param>
-        public void ApplySystemDef(SystemDef sysDef) {
+        public void ApplySystemDef(SystemDef sysDef)
+        {
             CpuDef.CpuType cpuType = CpuDef.GetCpuTypeFromName(sysDef.Cpu);
             bool includeUndoc = SystemDefaults.GetUndocumentedOpcodes(sysDef);
             bool twoByteBrk = SystemDefaults.GetTwoByteBrk(sysDef);
@@ -389,7 +404,8 @@ namespace SourceGen {
 
             // Configure the load address.
             AddrMap.Clear();
-            if (SystemDefaults.GetFirstWordIsLoadAddr(sysDef) && mFileData.Length > 2) {
+            if (SystemDefaults.GetFirstWordIsLoadAddr(sysDef) && mFileData.Length > 2)
+            {
                 // First two bytes are the load address, with the actual file data starting
                 // at +000002.  The first two bytes are non-addressable, so we leave them
                 // out of the map.
@@ -405,22 +421,27 @@ namespace SourceGen {
                 Comments[0] = Res.Strings.LOAD_ADDRESS;
                 AnalyzerTags[0] = CodeAnalysis.AnalyzerTag.None;
                 AnalyzerTags[2] = CodeAnalysis.AnalyzerTag.Code;
-            } else {
+            }
+            else
+            {
                 int loadAddr = SystemDefaults.GetLoadAddress(sysDef);
                 AddressMap.AddResult addRes =
                     AddrMap.AddEntry(0, mFileData.Length, loadAddr);
                 Debug.Assert(addRes == AddressMap.AddResult.Okay);
             }
 
-            foreach (string str in sysDef.SymbolFiles) {
+            foreach (string str in sysDef.SymbolFiles)
+            {
                 ProjectProps.PlatformSymbolFileIdentifiers.Add(str);
             }
-            foreach (string str in sysDef.ExtensionScripts) {
+            foreach (string str in sysDef.ExtensionScripts)
+            {
                 ProjectProps.ExtensionScriptFileIdentifiers.Add(str);
             }
         }
 
-        public void UpdateCpuDef() {
+        public void UpdateCpuDef()
+        {
             CpuDef = CpuDef.GetBestMatch(ProjectProps.CpuType,
                 ProjectProps.IncludeUndocumentedInstr, ProjectProps.TwoByteBrk);
         }
@@ -429,7 +450,8 @@ namespace SourceGen {
         /// Sets the file CRC.  Called during deserialization.
         /// </summary>
         /// <param name="crc">Data file CRC.</param>
-        public void SetFileCrc(uint crc) {
+        public void SetFileCrc(uint crc)
+        {
             Debug.Assert(FileDataLength > 0);
             FileDataCrc32 = crc;
         }
@@ -440,7 +462,8 @@ namespace SourceGen {
         /// <param name="fileData">65xx data file contents.</param>
         /// <param name="dataFileName">Data file's filename (not pathname).</param>
         /// <param name="report">Reporting object for validation errors.</param>
-        public void SetFileData(byte[] fileData, string dataFileName, ref FileLoadReport report) {
+        public void SetFileData(byte[] fileData, string dataFileName, ref FileLoadReport report)
+        {
             Debug.Assert(fileData.Length == FileDataLength);
             Debug.Assert(CRC32.OnWholeBuffer(0, fileData) == FileDataCrc32);
             mFileData = fileData;
@@ -534,11 +557,13 @@ namespace SourceGen {
         /// Walks the list of format descriptors, fixing places where the data doesn't match.
         /// This is run once, after the file is loaded.
         /// </summary>
-        private void FixAndValidate(ref FileLoadReport report) {
+        private void FixAndValidate(ref FileLoadReport report)
+        {
             // Can't modify a list while we're iterating through it, so gather changes here.
             Dictionary<int, FormatDescriptor> changes = new Dictionary<int, FormatDescriptor>();
 
-            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats) {
+            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats)
+            {
                 FormatDescriptor dfd = kvp.Value;
 
                 // v1 project files specified string layouts as sub-types, and assumed they
@@ -552,24 +577,31 @@ namespace SourceGen {
                 // When loading a v1 file, the old "Ascii" sub-type is deserialized to
                 // ASCII_GENERIC.  Now that we have access to the file data, we need to refine
                 // the sub-type to high or low.
-                if (dfd.FormatSubType == FormatDescriptor.SubType.ASCII_GENERIC) {
+                if (dfd.FormatSubType == FormatDescriptor.SubType.ASCII_GENERIC)
+                {
                     FormatDescriptor newDfd;
-                    if (dfd.IsString) {
+                    if (dfd.IsString)
+                    {
                         // Determine the string encoding by looking at the first character.
                         // For some strings (StringL8, StringL16) we need to skip forward a
                         // byte or two.  Empty strings with lengths or null-termination will
                         // be treated as low ASCII.
                         int checkOffset = kvp.Key;
-                        if (dfd.FormatType == FormatDescriptor.Type.StringL8 && dfd.Length > 1) {
+                        if (dfd.FormatType == FormatDescriptor.Type.StringL8 && dfd.Length > 1)
+                        {
                             checkOffset++;
-                        } else if (dfd.FormatType == FormatDescriptor.Type.StringL16 && dfd.Length > 2) {
+                        }
+                        else if (dfd.FormatType == FormatDescriptor.Type.StringL16 && dfd.Length > 2)
+                        {
                             checkOffset += 2;
                         }
                         bool isHigh = (FileData[checkOffset] & 0x80) != 0;
                         newDfd = FormatDescriptor.Create(dfd.Length, dfd.FormatType,
                             isHigh ? FormatDescriptor.SubType.HighAscii :
                                 FormatDescriptor.SubType.Ascii);
-                    } else if (dfd.IsNumeric) {
+                    }
+                    else if (dfd.IsNumeric)
+                    {
                         // This is a character constant in an instruction or data operand, such
                         // as ".dd1 'f'" or "LDA #'f'".  Could be multi-byte (even instructions
                         // can be 16-bit).  This is a little awkward, because at this point we
@@ -584,12 +616,17 @@ namespace SourceGen {
                         // - if the second byte is $00, it's data; grab the first byte
                         // - otherwise, it's an instruction; grab the second byte
                         int checkOffset;
-                        if (dfd.FormatType == FormatDescriptor.Type.NumericBE) {
+                        if (dfd.FormatType == FormatDescriptor.Type.NumericBE)
+                        {
                             Debug.Assert(dfd.Length <= FormatDescriptor.MAX_NUMERIC_LEN);
                             checkOffset = kvp.Key + dfd.Length - 1;
-                        } else if (dfd.Length < 2 || FileData[kvp.Key + 1] == 0x00) {
+                        }
+                        else if (dfd.Length < 2 || FileData[kvp.Key + 1] == 0x00)
+                        {
                             checkOffset = kvp.Key;
-                        } else {
+                        }
+                        else
+                        {
                             Debug.Assert(dfd.FormatType == FormatDescriptor.Type.NumericLE);
                             checkOffset = kvp.Key + 1;
                         }
@@ -597,7 +634,9 @@ namespace SourceGen {
                         newDfd = FormatDescriptor.Create(dfd.Length, dfd.FormatType,
                             isHigh ? FormatDescriptor.SubType.HighAscii :
                                 FormatDescriptor.SubType.Ascii);
-                    } else {
+                    }
+                    else
+                    {
                         Debug.Assert(false);
                         newDfd = dfd;
                     }
@@ -613,10 +652,12 @@ namespace SourceGen {
             // Run through the list again, this time looking for badly-formed strings.  We're
             // only checking structure, not character encoding, because you're allowed to have
             // non-printable characters in strings.
-            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats) {
+            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats)
+            {
                 FormatDescriptor dfd = kvp.Value;
                 if (dfd.IsString && !DataAnalysis.VerifyStringData(FileData, kvp.Key, dfd.Length,
-                        dfd.FormatType, out string failMsg)) {
+                        dfd.FormatType, out string failMsg))
+                {
                     report.Add(FileLoadItem.Type.Warning,
                         "+" + kvp.Key.ToString("x6") + ": " + failMsg);
                     changes[kvp.Key] = null;
@@ -624,10 +665,14 @@ namespace SourceGen {
             }
 
             // Apply changes to main list.
-            foreach (KeyValuePair<int, FormatDescriptor> kvp in changes) {
-                if (kvp.Value == null) {
+            foreach (KeyValuePair<int, FormatDescriptor> kvp in changes)
+            {
+                if (kvp.Value == null)
+                {
                     OperandFormats.Remove(kvp.Key);
-                } else {
+                }
+                else
+                {
                     OperandFormats[kvp.Key] = kvp.Value;
                 }
             }
@@ -642,14 +687,16 @@ namespace SourceGen {
         /// Failures here will be reported to the user but aren't fatal.
         /// </summary>
         /// <returns>Multi-line string with all warnings from load process.</returns>
-        public string LoadExternalFiles() {
+        public string LoadExternalFiles()
+        {
             TaskTimer timer = new TaskTimer();
             timer.StartTask("Total");
 
             StringBuilder sb = new StringBuilder();
 
             string projectDir = string.Empty;
-            if (!string.IsNullOrEmpty(ProjectPathName)) {
+            if (!string.IsNullOrEmpty(ProjectPathName))
+            {
                 projectDir = Path.GetDirectoryName(ProjectPathName);
             }
 
@@ -657,14 +704,17 @@ namespace SourceGen {
             timer.StartTask("Platform Symbols");
             PlatformSyms.Clear();
             int loadOrdinal = 0;
-            foreach (string fileIdent in ProjectProps.PlatformSymbolFileIdentifiers) {
+            foreach (string fileIdent in ProjectProps.PlatformSymbolFileIdentifiers)
+            {
                 PlatformSymbols ps = new PlatformSymbols();
                 bool ok = ps.LoadFromFile(fileIdent, projectDir, loadOrdinal,
                     out FileLoadReport report);
-                if (ok) {
+                if (ok)
+                {
                     PlatformSyms.Add(ps);
                 }
-                if (report.Count > 0) {
+                if (report.Count > 0)
+                {
                     sb.Append(report.Format());
                 }
                 loadOrdinal++;
@@ -673,18 +723,23 @@ namespace SourceGen {
 
             // Instantiate the script manager on first use.
             timer.StartTask("Create ScriptManager");
-            if (mScriptManager == null) {
+            if (mScriptManager == null)
+            {
                 mScriptManager = new ScriptManager(this);
-            } else {
+            }
+            else
+            {
                 mScriptManager.Clear();
             }
             timer.EndTask("Create ScriptManager");
 
             // Load the extension script files.
             timer.StartTask("Load Extension Scripts");
-            foreach (string fileIdent in ProjectProps.ExtensionScriptFileIdentifiers) {
+            foreach (string fileIdent in ProjectProps.ExtensionScriptFileIdentifiers)
+            {
                 bool ok = mScriptManager.LoadPlugin(fileIdent, out FileLoadReport report);
-                if (report.Count > 0) {
+                if (report.Count > 0)
+                {
                     sb.Append(report.Format());
                 }
             }
@@ -700,12 +755,14 @@ namespace SourceGen {
         /// Checks some stuff.  Problems are handled with assertions, so this is only
         /// useful in debug builds.
         /// </summary>
-        public void Validate() {
+        public void Validate()
+        {
             // Confirm that we can walk through the file, stepping directly from the start
             // of one thing to the start of the next.  We won't normally do this, because
             // we need to watch for embedded instructions.
             int offset = 0;
-            while (offset < mFileData.Length) {
+            while (offset < mFileData.Length)
+            {
                 Anattrib attr = mAnattribs[offset];
                 bool thisIsCode = attr.IsInstructionStart;
                 Debug.Assert(attr.IsStart);
@@ -720,7 +777,8 @@ namespace SourceGen {
                 // overwritten by the code analyzer.  See test 2022 for an example.
                 int extraInstrBytes = 0;
                 while (offset < mFileData.Length && mAnattribs[offset].IsInstruction &&
-                        !mAnattribs[offset].IsInstructionStart) {
+                        !mAnattribs[offset].IsInstructionStart)
+                {
                     extraInstrBytes++;
                     offset++;
                 }
@@ -738,13 +796,15 @@ namespace SourceGen {
 
             // Confirm that all bytes are tagged as code, data, or inline data.  The Asserts
             // in Anattrib should confirm that nothing is tagged as more than one thing.
-            for (offset = 0; offset < mAnattribs.Length; offset++) {
+            for (offset = 0; offset < mAnattribs.Length; offset++)
+            {
                 Anattrib attr = mAnattribs[offset];
                 Debug.Assert(attr.IsInstruction || attr.IsInlineData || attr.IsData);
             }
 
             // Confirm that there are no Default format entries in OperandFormats.
-            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats) {
+            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats)
+            {
                 Debug.Assert(kvp.Value.FormatType != FormatDescriptor.Type.Default);
                 Debug.Assert(kvp.Value.FormatType != FormatDescriptor.Type.REMOVE);
             }
@@ -753,17 +813,21 @@ namespace SourceGen {
         /// <summary>
         /// Checks to see if any section of the address map runs across a bank boundary.
         /// </summary>
-        private void ValidateAddressMap() {
+        private void ValidateAddressMap()
+        {
             // Use the change list, because the map entry list can have "floating" length values
             // (which don't automatically stop at bank boundaries).
             IEnumerator<AddressMap.AddressChange> addrIter = AddrMap.AddressChangeIterator;
-            while (addrIter.MoveNext()) {
+            while (addrIter.MoveNext())
+            {
                 AddressMap.AddressChange change = addrIter.Current;
-                if (!change.IsStart || change.Address == Address.NON_ADDR) {
+                if (!change.IsStart || change.Address == Address.NON_ADDR)
+                {
                     continue;
                 }
                 AddressMap.AddressRegion region = change.Region;
-                if ((region.Address & 0xff0000) != ((region.Address + region.ActualLength - 1) & 0xff0000)) {
+                if ((region.Address & 0xff0000) != ((region.Address + region.ActualLength - 1) & 0xff0000))
+                {
                     string fmt = Res.Strings.MSG_BANK_OVERRUN_DETAIL_FMT;
                     int firstNext = (region.Address & 0xff0000) + 0x010000;
                     int badOffset = region.Offset + (firstNext - region.Address);
@@ -780,12 +844,16 @@ namespace SourceGen {
         /// <summary>
         /// Checks for hidden visualization sets.
         /// </summary>
-        private void ValidateVisualizationSets() {
-            foreach (KeyValuePair<int, VisualizationSet> kvp in VisualizationSets) {
+        private void ValidateVisualizationSets()
+        {
+            foreach (KeyValuePair<int, VisualizationSet> kvp in VisualizationSets)
+            {
                 Anattrib attr = GetAnattrib(kvp.Key);
-                if (!attr.IsStart) {
+                if (!attr.IsStart)
+                {
                     string tag = string.Empty;
-                    if (kvp.Value.Count > 0) {
+                    if (kvp.Value.Count > 0)
+                    {
                         tag = kvp.Value[0].Tag;
                     }
                     Messages.Add(new MessageList.MessageEntry(
@@ -807,7 +875,8 @@ namespace SourceGen {
         /// <param name="debugLog">Object to send debug output to.</param>
         /// <param name="reanalysisTimer">Task timestamp collection object.</param>
         public void Analyze(UndoableChange.ReanalysisScope reanalysisRequired,
-                CommonUtil.DebugLog debugLog, TaskTimer reanalysisTimer) {
+                CommonUtil.DebugLog debugLog, TaskTimer reanalysisTimer)
+        {
             // This method doesn't return an error code.  It succeeds to the best of its ability,
             // and handles problems by discarding bad data.  The overall philosophy is that
             // the program will never generate bad data, and any bad project file contents
@@ -837,7 +906,8 @@ namespace SourceGen {
             UpdateAndMergeUserLabels();
             reanalysisTimer.EndTask("SymbolTable init");
 
-            if (reanalysisRequired == UndoableChange.ReanalysisScope.CodeAndData) {
+            if (reanalysisRequired == UndoableChange.ReanalysisScope.CodeAndData)
+            {
                 // Always want to start with a blank array.  Going to be lazy and let the
                 // system allocator handle that for us.
                 // NOTE: don't generate any Messages during code analysis -- we clear the
@@ -853,7 +923,8 @@ namespace SourceGen {
                 ca.Analyze();
                 reanalysisTimer.EndTask("CodeAnalysis.Analyze");
 
-                if (!CpuDef.HasAddr16) {
+                if (!CpuDef.HasAddr16)
+                {
                     // 24-bit address space, so DBR matters
                     reanalysisTimer.StartTask("CodeAnalysis.ApplyDataBankRegister");
                     ca.ApplyDataBankRegister(DbrOverrides, DbrChanges);
@@ -863,7 +934,9 @@ namespace SourceGen {
                 // Save a copy of the current state.
                 mCodeOnlyAnattribs = new Anattrib[mAnattribs.Length];
                 Array.Copy(mAnattribs, mCodeOnlyAnattribs, mAnattribs.Length);
-            } else {
+            }
+            else
+            {
                 // Load Anattribs array from the stored copy.
                 Debug.WriteLine("Partial reanalysis");
                 reanalysisTimer.StartTask("CodeAnalysis (restore prev)");
@@ -937,7 +1010,8 @@ namespace SourceGen {
             reanalysisTimer.EndTask("GenerateXrefs");
 
             // replace simple auto-labels ("L1234") with annotated versions ("WR_1234")
-            if (ProjectProps.AutoLabelStyle != AutoLabel.Style.Simple) {
+            if (ProjectProps.AutoLabelStyle != AutoLabel.Style.Simple)
+            {
                 reanalysisTimer.StartTask("AnnotateAutoLabels");
                 AnnotateAutoLabels();
                 reanalysisTimer.EndTask("AnnotateAutoLabels");
@@ -973,16 +1047,20 @@ namespace SourceGen {
         /// be replaced.
         /// </summary>
         /// <param name="genLog">Log for debug messages.</param>
-        private void ApplyUserLabels(DebugLog genLog) {
-            foreach (KeyValuePair<int, Symbol> kvp in UserLabels) {
+        private void ApplyUserLabels(DebugLog genLog)
+        {
+            foreach (KeyValuePair<int, Symbol> kvp in UserLabels)
+            {
                 int offset = kvp.Key;
-                if (offset < 0 || offset >= mAnattribs.Length) {
+                if (offset < 0 || offset >= mAnattribs.Length)
+                {
                     genLog.LogE("Invalid offset +" + offset.ToString("x6") +
                         "(label=" + kvp.Value.Label + ")");
                     continue;       // ignore this
                 }
 
-                if (mAnattribs[offset].Symbol != null) {
+                if (mAnattribs[offset].Symbol != null)
+                {
                     genLog.LogW("Multiple labels at offset +" + offset.ToString("x6") +
                         ": " + kvp.Value.Label + " / " + mAnattribs[offset].Symbol.Label);
                     continue;
@@ -1012,17 +1090,20 @@ namespace SourceGen {
         /// stop sending them to the log.
         /// </remarks>
         /// <param name="genLog">Log for debug messages.</param>
-        private void ApplyFormatDescriptors(DebugLog genLog) {
+        private void ApplyFormatDescriptors(DebugLog genLog)
+        {
             genLog.LogI("Applying format descriptors");
 
             // TODO(someday): move error format strings to string dictionary
 
-            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats) {
+            foreach (KeyValuePair<int, FormatDescriptor> kvp in OperandFormats)
+            {
                 int offset = kvp.Key;
                 FormatDescriptor dfd = kvp.Value;
 
                 // Check offset.
-                if (offset < 0 || offset >= mFileData.Length) {
+                if (offset < 0 || offset >= mFileData.Length)
+                {
                     string msg = "invalid offset (desc=" + dfd + ")";
                     genLog.LogE("+" + offset.ToString("x6") + ": " + msg);
                     Messages.Add(new MessageList.MessageEntry(
@@ -1036,7 +1117,8 @@ namespace SourceGen {
                 }
 
                 // Make sure it doesn't run off the end
-                if (offset + dfd.Length > mFileData.Length) {
+                if (offset + dfd.Length > mFileData.Length)
+                {
                     string msg = "invalid offset+len: len=" + dfd.Length +
                         " file=" + mFileData.Length;
                     genLog.LogE("+" + offset.ToString("x6") + ": " + msg);
@@ -1050,7 +1132,8 @@ namespace SourceGen {
                     continue;
                 }
 
-                if (!AddrMap.IsRangeUnbroken(offset, dfd.Length)) {
+                if (!AddrMap.IsRangeUnbroken(offset, dfd.Length))
+                {
                     string msg = "descriptor straddles address change; len=" + dfd.Length;
                     genLog.LogE("+" + offset.ToString("x6") + ": " + msg);
                     Messages.Add(new MessageList.MessageEntry(
@@ -1062,11 +1145,13 @@ namespace SourceGen {
                     continue;
                 }
 
-                if (mAnattribs[offset].IsInstructionStart) {
+                if (mAnattribs[offset].IsInstructionStart)
+                {
                     // Check length for instruction formatters.  This can happen if you format
                     // a bunch of bytes as single-byte data items and then add a code entry
                     // point.
-                    if (dfd.Length != mAnattribs[offset].Length) {
+                    if (dfd.Length != mAnattribs[offset].Length)
+                    {
                         string msg = "unexpected length on instr format descriptor (" +
                             dfd.Length + " vs " + mAnattribs[offset].Length + ")";
                         genLog.LogW("+" + offset.ToString("x6") + ": " + msg);
@@ -1078,7 +1163,8 @@ namespace SourceGen {
                             MessageList.MessageEntry.ProblemResolution.FormatDescriptorIgnored));
                         continue;
                     }
-                    if (dfd.Length == 1) {
+                    if (dfd.Length == 1)
+                    {
                         // No operand to format!
                         string msg = "unexpected format descriptor on single-byte op";
                         genLog.LogW("+" + offset.ToString("x6") + ": " + msg);
@@ -1090,7 +1176,8 @@ namespace SourceGen {
                             MessageList.MessageEntry.ProblemResolution.FormatDescriptorIgnored));
                         continue;
                     }
-                    if (!dfd.IsValidForInstruction) {
+                    if (!dfd.IsValidForInstruction)
+                    {
                         string msg = "descriptor not valid for instruction: " + dfd;
                         genLog.LogW("+" + offset.ToString("x6") + ": " + msg);
                         Messages.Add(new MessageList.MessageEntry(
@@ -1101,7 +1188,9 @@ namespace SourceGen {
                             MessageList.MessageEntry.ProblemResolution.FormatDescriptorIgnored));
                         continue;
                     }
-                } else if (mAnattribs[offset].IsInstruction) {
+                }
+                else if (mAnattribs[offset].IsInstruction)
+                {
                     // Mid-instruction format.
                     string msg = "unexpected mid-instruction format descriptor";
                     genLog.LogW("+" + offset.ToString("x6") + ": " + msg);
@@ -1112,7 +1201,9 @@ namespace SourceGen {
                         msg,
                         MessageList.MessageEntry.ProblemResolution.FormatDescriptorIgnored));
                     continue;
-                } else {
+                }
+                else
+                {
                     // Data or inline data.  The data analyzer hasn't run yet.  We want to
                     // confirm that the descriptor doesn't overlap with code.
                     //
@@ -1126,8 +1217,10 @@ namespace SourceGen {
                     // All instruction bytes have been marked, so we just need to confirm that
                     // none of the bytes spanned by this descriptor are instructions.
                     bool overlap = false;
-                    for (int i = offset; i < offset + dfd.Length; i++) {
-                        if (mAnattribs[i].IsInstruction) {
+                    for (int i = offset; i < offset + dfd.Length; i++)
+                    {
+                        if (mAnattribs[i].IsInstruction)
+                        {
                             string msg =
                                 "data format descriptor overlaps code at +" + i.ToString("x6");
                             genLog.LogW("+" + offset.ToString("x6") + ": " + msg);
@@ -1141,7 +1234,8 @@ namespace SourceGen {
                             break;
                         }
                     }
-                    if (overlap) {
+                    if (overlap)
+                    {
                         continue;
                     }
 
@@ -1182,17 +1276,24 @@ namespace SourceGen {
         /// Within platform symbol loading, later symbols should replace earlier symbols,
         /// so that ordering of platform files behaves in an intuitive fashion.
         /// </summary>
-        private void MergePlatformProjectSymbols() {
+        private void MergePlatformProjectSymbols()
+        {
             // Start by pulling in the platform symbols.  The list in PlatformSymbols is in
             // order, so we can just overwrite earlier symbols with matching labels.
-            foreach (PlatformSymbols ps in PlatformSyms) {
-                foreach (Symbol sym in ps) {
-                    if (sym.Value == PlatformSymbols.ERASE_VALUE) {
+            foreach (PlatformSymbols ps in PlatformSyms)
+            {
+                foreach (Symbol sym in ps)
+                {
+                    if (sym.Value == PlatformSymbols.ERASE_VALUE)
+                    {
                         // "erase" value
-                        if (SymbolTable.TryGetValue(sym.Label, out Symbol found)) {
+                        if (SymbolTable.TryGetValue(sym.Label, out Symbol found))
+                        {
                             SymbolTable.Remove(found);
                         }
-                    } else {
+                    }
+                    else
+                    {
                         // overwrite
                         SymbolTable[sym.Label] = sym;
                     }
@@ -1200,7 +1301,8 @@ namespace SourceGen {
             }
 
             // Now add project symbols, overwriting platform symbols with the same label.
-            foreach (KeyValuePair<string, DefSymbol> kvp in ProjectProps.ProjectSyms) {
+            foreach (KeyValuePair<string, DefSymbol> kvp in ProjectProps.ProjectSyms)
+            {
                 SymbolTable[kvp.Value.Label] = kvp.Value;
             }
         }
@@ -1212,11 +1314,14 @@ namespace SourceGen {
         /// <remarks>
         /// These are external symbols, with a higher precedence than project symbols.
         /// </remarks>
-        private void MergeAddressPreLabels() {
+        private void MergeAddressPreLabels()
+        {
             IEnumerator<AddressMap.AddressChange> addrIter = AddrMap.AddressChangeIterator;
-            while (addrIter.MoveNext()) {
+            while (addrIter.MoveNext())
+            {
                 AddressMap.AddressRegion region = addrIter.Current.Region;
-                if (addrIter.Current.IsStart && region.HasValidPreLabel) {
+                if (addrIter.Current.IsStart && region.HasValidPreLabel)
+                {
                     // Generate a DefSymbol for it, and add it to the symbol table.
                     Symbol sym = new Symbol(region.PreLabel, region.PreLabelAddress,
                         Symbol.Source.AddrPreLabel, Symbol.Type.ExternalAddr,
@@ -1233,16 +1338,21 @@ namespace SourceGen {
         /// <remarks>
         /// Useful for determining whether a label masks a project or platform symbol.
         /// </remarks>
-        private bool IsInProjectOrPlatformList(Symbol sym) {
-            if (sym == null) {
+        private bool IsInProjectOrPlatformList(Symbol sym)
+        {
+            if (sym == null)
+            {
                 return false;
             }
-            foreach (PlatformSymbols ps in PlatformSyms) {
-                if (ps.ContainsKey(sym.Label)) {
+            foreach (PlatformSymbols ps in PlatformSyms)
+            {
+                if (ps.ContainsKey(sym.Label))
+                {
                     return true;
                 }
             }
-            if (ProjectProps.ProjectSyms.ContainsKey(sym.Label)) {
+            if (ProjectProps.ProjectSyms.ContainsKey(sym.Label))
+            {
                 return true;
             }
             return false;
@@ -1256,7 +1366,8 @@ namespace SourceGen {
         /// It might make sense to exclude non-unique labels, but that's probably better done
         /// with a UI filter option.
         /// </remarks>
-        private void UpdateAndMergeUserLabels() {
+        private void UpdateAndMergeUserLabels()
+        {
             // We store symbols as label+value, but for a user label the actual value is
             // the address of the offset the label is associated with, which can change if
             // the user updates the address map.  It's convenient to store labels as Symbols
@@ -1265,11 +1376,13 @@ namespace SourceGen {
 
             Dictionary<int, Symbol> changes = new Dictionary<int, Symbol>();
 
-            foreach (KeyValuePair<int, Symbol> kvp in UserLabels) {
+            foreach (KeyValuePair<int, Symbol> kvp in UserLabels)
+            {
                 int offset = kvp.Key;
                 Symbol sym = kvp.Value;
                 int expectedAddr = AddrMap.OffsetToAddress(offset);
-                if (sym.Value != expectedAddr) {
+                if (sym.Value != expectedAddr)
+                {
                     Symbol newSym = sym.UpdateValue(expectedAddr);
                     Debug.WriteLine("Updating label value: " + sym + " --> " + newSym);
                     changes[offset] = newSym;
@@ -1279,10 +1392,12 @@ namespace SourceGen {
             }
 
             // If we updated any symbols, merge the changes back into UserLabels.
-            if (changes.Count != 0) {
+            if (changes.Count != 0)
+            {
                 Debug.WriteLine("...merging " + changes.Count + " symbols into UserLabels");
             }
-            foreach (KeyValuePair<int, Symbol> kvp in changes) {
+            foreach (KeyValuePair<int, Symbol> kvp in changes)
+            {
                 UserLabels[kvp.Key] = kvp.Value;
             }
         }
@@ -1297,15 +1412,18 @@ namespace SourceGen {
         /// to create multiple labels with the same name, because the app won't see them
         /// in the symbol table.
         /// </summary>
-        private void RemoveHiddenLabels() {
+        private void RemoveHiddenLabels()
+        {
             // TODO(someday): keep the symbols in the symbol table so we can't create a
             //   duplicate, but flag it as hidden.  The symbol resolver will need to know
             //   to ignore it.  Provide a way for users to purge them.  We could just blow
             //   them out of UserLabels right now, but I'm trying to avoid discarding user-
             //   created data without permission.
-            foreach (KeyValuePair<int, Symbol> kvp in UserLabels) {
+            foreach (KeyValuePair<int, Symbol> kvp in UserLabels)
+            {
                 int offset = kvp.Key;
-                if (!mAnattribs[offset].IsStart) {
+                if (!mAnattribs[offset].IsStart)
+                {
                     Debug.WriteLine("Stripping hidden label '" + kvp.Value.Label + "'");
                     SymbolTable.Remove(kvp.Value);
 
@@ -1331,19 +1449,24 @@ namespace SourceGen {
         /// This also adds all symbols in non-hidden variable tables to the main SymbolTable,
         /// for the benefit of future uniqueness checks.
         /// </summary>
-        private void GenerateVariableRefs() {
+        private void GenerateVariableRefs()
+        {
             LocalVariableLookup lvLookup = new LocalVariableLookup(LvTables, this,
                 null, false, false);
 
-            for (int offset = 0; offset < FileData.Length; ) {
+            for (int offset = 0; offset < FileData.Length;)
+            {
                 // Was a table defined at this offset?
                 List<DefSymbol> vars = lvLookup.GetVariablesDefinedAtOffset(offset);
-                if (vars != null) {
+                if (vars != null)
+                {
                     // All entries also get added to the main SymbolTable.  This is a little
                     // wonky because the symbol might already exist with a different value.
                     // So long as the previous thing was also a variable, it doesn't matter.
-                    foreach (DefSymbol defSym in vars) {
-                        if (!SymbolTable.TryGetValue(defSym.Label, out Symbol sym)) {
+                    foreach (DefSymbol defSym in vars)
+                    {
+                        if (!SymbolTable.TryGetValue(defSym.Label, out Symbol sym))
+                        {
                             // Symbol not yet in symbol table.  Add it.
                             //
                             // NOTE: if you try to run the main app with uniqification enabled,
@@ -1351,7 +1474,9 @@ namespace SourceGen {
                             // to end up in the main symbol table.  This can cause clashes with
                             // user labels that would not occur otherwise.
                             SymbolTable[defSym.Label] = defSym;
-                        } else if (!sym.IsVariable) {
+                        }
+                        else if (!sym.IsVariable)
+                        {
                             // Somehow we have a variable and a non-variable with the same
                             // name.  Platform/project symbols haven't been processed yet, so
                             // this must be a clash with a user label.  This could cause
@@ -1366,7 +1491,9 @@ namespace SourceGen {
                             Debug.Assert(false);
                         }
                     }
-                } else if (LvTables.TryGetValue(offset, out LocalVariableTable unused)) {
+                }
+                else if (LvTables.TryGetValue(offset, out LocalVariableTable unused))
+                {
                     // table was ignored
                     Messages.Add(new MessageList.MessageEntry(
                         MessageList.MessageEntry.SeverityLevel.Warning,
@@ -1377,18 +1504,23 @@ namespace SourceGen {
                 }
 
                 Anattrib attr = mAnattribs[offset];
-                if (attr.IsInstructionStart && attr.DataDescriptor == null) {
+                if (attr.IsInstructionStart && attr.DataDescriptor == null)
+                {
                     OpDef op = CpuDef.GetOpDef(FileData[offset]);
                     DefSymbol defSym = null;
-                    if (op.IsDirectPageInstruction) {
+                    if (op.IsDirectPageInstruction)
+                    {
                         Debug.Assert(attr.OperandAddress == FileData[offset + 1]);
                         defSym = lvLookup.GetSymbol(offset, FileData[offset + 1],
                             Symbol.Type.ExternalAddr);
-                    } else if (op.IsStackRelInstruction) {
+                    }
+                    else if (op.IsStackRelInstruction)
+                    {
                         defSym = lvLookup.GetSymbol(offset, FileData[offset + 1],
                             Symbol.Type.Constant);
                     }
-                    if (defSym != null) {
+                    if (defSym != null)
+                    {
                         WeakSymbolRef vref = new WeakSymbolRef(defSym.Label,
                             WeakSymbolRef.Part.Low, op.IsStackRelInstruction ?
                                 WeakSymbolRef.LocalVariableType.StackRelConst :
@@ -1398,9 +1530,12 @@ namespace SourceGen {
                     }
                 }
 
-                if (attr.IsDataStart || attr.IsInlineDataStart) {
+                if (attr.IsDataStart || attr.IsInlineDataStart)
+                {
                     offset += attr.Length;
-                } else {
+                }
+                else
+                {
                     // Advance by one, not attr.Length, so we don't miss embedded instructions.
                     offset++;
                 }
@@ -1420,16 +1555,19 @@ namespace SourceGen {
         /// interact with labels, so the ordering there doesn't matter.  This should come after
         /// local variable resolution, so that those have priority.
         /// </summary>
-        private void GeneratePlatformSymbolRefs() {
+        private void GeneratePlatformSymbolRefs()
+        {
             bool checkNearby = ProjectProps.AnalysisParams.SeekNearbyTargets;
 
-            for (int offset = 0; offset < mAnattribs.Length; ) {
+            for (int offset = 0; offset < mAnattribs.Length;)
+            {
                 Anattrib attr = mAnattribs[offset];
                 Symbol sym;
                 int address;
                 OpDef.MemoryEffect accType = OpDef.MemoryEffect.Unknown;
                 if (attr.IsInstructionStart && attr.DataDescriptor == null &&
-                        attr.OperandAddress >= 0 && attr.OperandOffset < 0) {
+                        attr.OperandAddress >= 0 && attr.OperandOffset < 0)
+                {
                     // This is an instruction that hasn't been explicitly formatted.  It
                     // has an operand address, but not an offset, meaning it's a reference
                     // to an address outside the scope of the file. See if it has a
@@ -1447,9 +1585,11 @@ namespace SourceGen {
                     accType = op.MemEffect;
                     address = attr.OperandAddress;
                     sym = SymbolTable.FindNonVariableByAddress(address, accType);
-                } else if ((attr.IsDataStart || attr.IsInlineDataStart) &&
-                        attr.DataDescriptor != null && attr.DataDescriptor.IsNumeric &&
-                        attr.DataDescriptor.FormatSubType == FormatDescriptor.SubType.Address) {
+                }
+                else if ((attr.IsDataStart || attr.IsInlineDataStart) &&
+                      attr.DataDescriptor != null && attr.DataDescriptor.IsNumeric &&
+                      attr.DataDescriptor.FormatSubType == FormatDescriptor.SubType.Address)
+                {
                     // Found a Numeric/Address data item that matches.  Data items don't have
                     // OperandAddress or OperandOffset set, so we need to check manually to
                     // see if the address falls within the project.  In most situations this
@@ -1460,21 +1600,27 @@ namespace SourceGen {
                     // Address, so we're essentially "upgrading" the user format.
                     address = RawData.GetWord(mFileData, offset, attr.DataDescriptor.Length,
                         attr.DataDescriptor.FormatType == FormatDescriptor.Type.NumericBE);
-                    if (AddrMap.AddressToOffset(offset, address) < 0) {
+                    if (AddrMap.AddressToOffset(offset, address) < 0)
+                    {
                         accType = OpDef.MemoryEffect.ReadModifyWrite;   // guess
                         sym = SymbolTable.FindNonVariableByAddress(address, accType);
-                    } else {
+                    }
+                    else
+                    {
                         Debug.WriteLine("Found unhandled internal data addr ref at +" +
                             offset.ToString("x6"));
                         address = -1;       // don't touch interior stuff
                         sym = null;
                     }
-                } else {
+                }
+                else
+                {
                     address = -1;
                     sym = null;
                 }
 
-                if (address >= 0) {
+                if (address >= 0)
+                {
                     // If we didn't find it, see if addr+1 has a label.  Sometimes indexed
                     // addressing will use "STA addr-1,y".  This will also catch "STA addr-1"
                     // when addr is the very start of a segment, which means we're actually
@@ -1485,26 +1631,32 @@ namespace SourceGen {
                     // individual variables that aren't accessed via addr-1.  There are
                     // exceptions, but more often than not it's just distracting.
                     if (sym == null && checkNearby && (address & 0xffff) < 0xffff &&
-                            address > 0x0000ff) {
+                            address > 0x0000ff)
+                    {
                         sym = SymbolTable.FindNonVariableByAddress(address + 1, accType);
                         if (sym != null && sym.SymbolSource != Symbol.Source.Project &&
-                                sym.SymbolSource != Symbol.Source.Platform) {
+                                sym.SymbolSource != Symbol.Source.Platform)
+                        {
                             Debug.WriteLine("Applying non-platform in GeneratePlatform: " + sym);
                             // should be okay to do this
                         }
                     }
 
                     // If we found something, and it's not a variable, create a descriptor.
-                    if (sym != null && !sym.IsVariable) {
+                    if (sym != null && !sym.IsVariable)
+                    {
                         mAnattribs[offset].DataDescriptor =
                             FormatDescriptor.Create(mAnattribs[offset].Length,
                                 new WeakSymbolRef(sym.Label, WeakSymbolRef.Part.Low), false);
                     }
                 }
 
-                if (attr.IsDataStart || attr.IsInlineDataStart) {
+                if (attr.IsDataStart || attr.IsInlineDataStart)
+                {
                     offset += attr.Length;
-                } else {
+                }
+                else
+                {
                     // Advance by one, not attr.Length, so we don't miss embedded instructions.
                     offset++;
                 }
@@ -1517,7 +1669,8 @@ namespace SourceGen {
         /// 
         /// Call this after the code and data analysis passes have completed.
         /// </summary>
-        private void GenerateXrefs() {
+        private void GenerateXrefs()
+        {
             // Xref generation.  There are two general categories of references:
             //  (1) Numeric reference.  Comes from instructions (e.g. "LDA $1000" or "BRA $1000")
             //      and Numeric/Address data items.
@@ -1540,14 +1693,18 @@ namespace SourceGen {
             // list.
             // TODO(someday): DefSymbol is otherwise immutable.  We should put these elsewhere,
             //   maybe a Dictionary<DefSymbol, XrefSet>?  Just mind the garbage collection.
-            foreach (Symbol sym in SymbolTable) {
-                if (sym is DefSymbol) {
+            foreach (Symbol sym in SymbolTable)
+            {
+                if (sym is DefSymbol)
+                {
                     (sym as DefSymbol).Xrefs.Clear();
                 }
             }
             // TODO: seriously, put the XrefSet ref somewhere else
-            foreach (LocalVariableTable lvt in LvTables.Values) {
-                for (int i = 0; i < lvt.Count; i++) {
+            foreach (LocalVariableTable lvt in LvTables.Values)
+            {
+                for (int i = 0; i < lvt.Count; i++)
+                {
                     lvt[i].Xrefs.Clear();
                 }
             }
@@ -1562,52 +1719,69 @@ namespace SourceGen {
 
             // Walk through the Anattrib array, adding xref entries to things referenced
             // by the entity at the current offset.
-            for (int offset = 0; offset < mAnattribs.Length; ) {
+            for (int offset = 0; offset < mAnattribs.Length;)
+            {
                 Anattrib attr = mAnattribs[offset];
 
                 XrefSet.XrefType xrefType = XrefSet.XrefType.Unknown;
                 OpDef.MemoryEffect accType = OpDef.MemoryEffect.Unknown;
                 XrefSet.Xref.AccessFlags accessFlags = XrefSet.Xref.AccessFlags.None;
-                if (attr.IsInstruction) {
+                if (attr.IsInstruction)
+                {
                     OpDef op = CpuDef.GetOpDef(FileData[offset]);
-                    if (op.IsSubroutineCall) {
+                    if (op.IsSubroutineCall)
+                    {
                         xrefType = XrefSet.XrefType.SubCallOp;
-                    } else if (op.IsBranchOrSubCall) {
+                    }
+                    else if (op.IsBranchOrSubCall)
+                    {
                         xrefType = XrefSet.XrefType.BranchOp;
-                    } else {
+                    }
+                    else
+                    {
                         xrefType = XrefSet.XrefType.MemAccessOp;
                         accType = op.MemEffect;
                     }
-                    if (op.IsIndexedAccessInstruction) {
+                    if (op.IsIndexedAccessInstruction)
+                    {
                         accessFlags |= XrefSet.Xref.AccessFlags.Indexed;
                     }
-                    if (op.IsPointerAccessInstruction) {
+                    if (op.IsPointerAccessInstruction)
+                    {
                         accessFlags |= XrefSet.Xref.AccessFlags.Pointer;
                     }
-                } else if (attr.IsData || attr.IsInlineData) {
+                }
+                else if (attr.IsData || attr.IsInlineData)
+                {
                     xrefType = XrefSet.XrefType.RefFromData;
                 }
 
                 bool hasZeroOffsetSym = false;
-                if (attr.DataDescriptor != null) {
+                if (attr.DataDescriptor != null)
+                {
                     FormatDescriptor dfd = attr.DataDescriptor;
-                    if (dfd.FormatSubType == FormatDescriptor.SubType.Symbol) {
+                    if (dfd.FormatSubType == FormatDescriptor.SubType.Symbol)
+                    {
                         // For instructions with address operands that resolve in-file, grab
                         // the target offset.
                         int operandOffset = -1;
-                        if (attr.IsInstructionStart) {
+                        if (attr.IsInstructionStart)
+                        {
                             operandOffset = attr.OperandOffset;
                         }
 
                         // Is this a reference to a label?
-                        if (labelList.TryGetValue(dfd.SymbolRef.Label, out int symOffset)) {
+                        if (labelList.TryGetValue(dfd.SymbolRef.Label, out int symOffset))
+                        {
                             // Post a warning if the reference is to a non-addressable offset,
                             // unless the label in question is a pre-label.  We need to ignore
                             // those because it's valid to have a pre-label on an addressable
                             // region that shares a start point with a non-addressable child.
-                            if (mAnattribs[symOffset].IsNonAddressable) {
+                            if (mAnattribs[symOffset].IsNonAddressable)
+                            {
                                 if (mAnattribs[symOffset].Symbol != null &&
-                                        mAnattribs[symOffset].Symbol.Label == dfd.SymbolRef.Label) {
+                                        mAnattribs[symOffset].Symbol.Label == dfd.SymbolRef.Label)
+                                {
                                     Messages.Add(new MessageList.MessageEntry(
                                         MessageList.MessageEntry.SeverityLevel.Error,
                                         offset,
@@ -1619,7 +1793,8 @@ namespace SourceGen {
 
                             // Compute adjustment.
                             int adj = 0;
-                            if (operandOffset >= 0) {
+                            if (operandOffset >= 0)
+                            {
                                 // We can compute (symOffset - operandOffset), but that gives us
                                 // the offset adjustment, not the address adjustment.
                                 adj = mAnattribs[symOffset].Address -
@@ -1628,22 +1803,29 @@ namespace SourceGen {
 
                             AddXref(symOffset, new XrefSet.Xref(offset, true, xrefType, accType,
                                 accessFlags, adj));
-                            if (adj == 0) {
+                            if (adj == 0)
+                            {
                                 hasZeroOffsetSym = true;
                             }
-                        } else if (dfd.SymbolRef.IsVariable) {
+                        }
+                        else if (dfd.SymbolRef.IsVariable)
+                        {
                             DefSymbol defSym = lvLookup.GetSymbol(offset, dfd.SymbolRef);
-                            if (defSym != null) {
+                            if (defSym != null)
+                            {
                                 // The operand address and defSym value are both zero-page
                                 // locations, likely outside the file (so no OperandOffset).
                                 int adj = defSym.Value - attr.OperandAddress;
                                 defSym.Xrefs.Add(new XrefSet.Xref(offset, true, xrefType, accType,
                                     accessFlags, adj));
                             }
-                        } else if (SymbolTable.TryGetValue(dfd.SymbolRef.Label, out Symbol sym)) {
+                        }
+                        else if (SymbolTable.TryGetValue(dfd.SymbolRef.Label, out Symbol sym))
+                        {
                             // Is this a reference to a project/platform symbol?
                             if (sym.SymbolSource == Symbol.Source.Project ||
-                                    sym.SymbolSource == Symbol.Source.Platform) {
+                                    sym.SymbolSource == Symbol.Source.Platform)
+                            {
                                 DefSymbol defSym = sym as DefSymbol;
                                 int adj = 0;
                                 // NOTE: operandOffset may be valid, since you are allowed to
@@ -1651,10 +1833,13 @@ namespace SourceGen {
                                 // don't think we need to fiddle with that though.
                                 //Debug.Assert(operandOffset < 0);
                                 if (sym.SymbolType != Symbol.Type.Constant &&
-                                        attr.OperandAddress >= 0) {
+                                        attr.OperandAddress >= 0)
+                                {
                                     // It's an address operand, so we can compute the offset.
                                     adj = defSym.Value - attr.OperandAddress;
-                                } else {
+                                }
+                                else
+                                {
                                     // We could compute the operand's value and display
                                     // the difference, so "LDA #$00" --> "LDA #FOO-1" when
                                     // FOO is 1 would display "FOO -1" in the xref table.
@@ -1666,13 +1851,17 @@ namespace SourceGen {
                                 }
                                 defSym.Xrefs.Add(new XrefSet.Xref(offset, true, xrefType, accType,
                                     accessFlags, adj));
-                            } else {
+                            }
+                            else
+                            {
                                 // Can get here if somebody creates an address operand symbol
                                 // that refers to a local variable.
                                 Debug.WriteLine("NOTE: not xrefing +" + offset.ToString("x6") +
                                     " " + sym);
                             }
-                        } else {
+                        }
+                        else
+                        {
                             // Reference to non-existent symbol.
                             Messages.Add(new MessageList.MessageEntry(
                                 MessageList.MessageEntry.SeverityLevel.Info,
@@ -1681,12 +1870,17 @@ namespace SourceGen {
                                 dfd.SymbolRef.Label,
                                 MessageList.MessageEntry.ProblemResolution.FormatDescriptorIgnored));
                         }
-                    } else if (dfd.FormatSubType == FormatDescriptor.SubType.Address) {
-                        if (!(attr.IsData || attr.IsInlineData)) {
+                    }
+                    else if (dfd.FormatSubType == FormatDescriptor.SubType.Address)
+                    {
+                        if (!(attr.IsData || attr.IsInlineData))
+                        {
                             // not expecting this format on an instruction operand
                             Debug.WriteLine("Found addr format on instruction at +" +
                                 offset.ToString("x6"));
-                        } else {
+                        }
+                        else
+                        {
                             // This generally doesn't happen for internal addresses, because
                             // we create an auto label for the target address, and a weak ref
                             // to the auto label, which means the xref is handled by the symbol
@@ -1700,10 +1894,13 @@ namespace SourceGen {
                             int operandAddr = RawData.GetWord(mFileData, offset,
                                 dfd.Length, dfd.FormatType == FormatDescriptor.Type.NumericBE);
                             int targetOffset = AddrMap.AddressToOffset(offset, operandAddr);
-                            if (targetOffset < 0) {
+                            if (targetOffset < 0)
+                            {
                                 Debug.WriteLine("No xref for addr $" + operandAddr.ToString("x4") +
                                     " at +" + offset.ToString("x6"));
-                            } else {
+                            }
+                            else
+                            {
                                 Debug.WriteLine("HEY: found unlabeled addr ref at +" +
                                     offset.ToString("x6"));
                                 AddXref(targetOffset, new XrefSet.Xref(offset, false, xrefType,
@@ -1716,24 +1913,31 @@ namespace SourceGen {
                     // added a reference from a symbol with zero adjustment, since that would
                     // just leave a duplicate entry.  (The symbolic ref wins because we need
                     // it for the label localizer and possibly the label refactorer.)
-                    if (!hasZeroOffsetSym && attr.IsInstructionStart && attr.OperandOffset >= 0) {
+                    if (!hasZeroOffsetSym && attr.IsInstructionStart && attr.OperandOffset >= 0)
+                    {
                         AddXref(attr.OperandOffset, new XrefSet.Xref(offset, false, xrefType,
                             accType, accessFlags, 0));
                     }
                 }
 
-                if (attr.IsDataStart || attr.IsInlineDataStart) {
+                if (attr.IsDataStart || attr.IsInlineDataStart)
+                {
                     // There shouldn't be data items inside of other data items.
                     offset += attr.Length;
 
                     if (attr.DataDescriptor != null &&
                             (attr.DataDescriptor.FormatType == FormatDescriptor.Type.Uninit ||
-                             attr.DataDescriptor.FormatType == FormatDescriptor.Type.Junk)) {
+                             attr.DataDescriptor.FormatType == FormatDescriptor.Type.Junk))
+                    {
                         ByteCounts.JunkByteCount += attr.Length;
-                    } else {
+                    }
+                    else
+                    {
                         ByteCounts.DataByteCount += attr.Length;
                     }
-                } else {
+                }
+                else
+                {
                     // Advance by one, not attr.Length, so we don't miss embedded instructions.
                     offset++;
 
@@ -1747,8 +1951,10 @@ namespace SourceGen {
         /// </summary>
         /// <param name="offset">File offset for which cross-references are being noted.</param>
         /// <param name="xref">Cross reference to add to the set.</param>
-        private void AddXref(int offset, XrefSet.Xref xref) {
-            if (!mXrefs.TryGetValue(offset, out XrefSet xset)) {
+        private void AddXref(int offset, XrefSet.Xref xref)
+        {
+            if (!mXrefs.TryGetValue(offset, out XrefSet xset))
+            {
                 xset = mXrefs[offset] = new XrefSet();
             }
             xset.Add(xref);
@@ -1758,7 +1964,8 @@ namespace SourceGen {
         /// Returns the XrefSet for the specified offset.  May return null if the set is
         /// empty.
         /// </summary>
-        public XrefSet GetXrefSet(int offset) {
+        public XrefSet GetXrefSet(int offset)
+        {
             mXrefs.TryGetValue(offset, out XrefSet xset);
             return xset;        // will be null if not found
         }
@@ -1771,15 +1978,21 @@ namespace SourceGen {
         ///
         /// We use Anattribs to ensure that we only include visible labels.
         /// </summary>
-        private SortedList<string, int> CreateLabelToOffsetMap() {
+        private SortedList<string, int> CreateLabelToOffsetMap()
+        {
             SortedList<string, int> labelList = new SortedList<string, int>(mFileData.Length,
                 Asm65.Label.LABEL_COMPARER);
-            for (int offset = 0; offset < mAnattribs.Length; offset++) {
+            for (int offset = 0; offset < mAnattribs.Length; offset++)
+            {
                 Anattrib attr = mAnattribs[offset];
-                if (attr.Symbol != null) {
-                    try {
+                if (attr.Symbol != null)
+                {
+                    try
+                    {
                         labelList.Add(attr.Symbol.Label, offset);
-                    } catch (ArgumentException ex) {
+                    }
+                    catch (ArgumentException ex)
+                    {
                         // Duplicate UserLabel entries are stripped when projects are loaded, but
                         // it might be possible to cause this by hiding/unhiding a label (e.g.
                         // using a code start tag to place it in the middle of an instruction).
@@ -1793,15 +2006,21 @@ namespace SourceGen {
             // rejected.  Note the references will appear on the line for the next file offset,
             // not the pre-label itself, because we need to associate it with a file offset.
             IEnumerator<AddressMap.AddressChange> addrIter = AddrMap.AddressChangeIterator;
-            while (addrIter.MoveNext()) {
+            while (addrIter.MoveNext())
+            {
                 AddressMap.AddressChange change = addrIter.Current;
-                if (!change.IsStart) {
+                if (!change.IsStart)
+                {
                     continue;
                 }
-                if (change.Region.HasValidPreLabel) {
-                    try {
+                if (change.Region.HasValidPreLabel)
+                {
+                    try
+                    {
                         labelList.Add(change.Region.PreLabel, change.Region.Offset);
-                    } catch (ArgumentException ex) {
+                    }
+                    catch (ArgumentException ex)
+                    {
                         Debug.WriteLine("Xref ignoring pre-label duplicate '" +
                             change.Region.PreLabel + "': " + ex.Message);
                     }
@@ -1814,23 +2033,28 @@ namespace SourceGen {
         /// <summary>
         /// Replaces generic auto-labels with fancier versions generated from xrefs.
         /// </summary>
-        private void AnnotateAutoLabels() {
+        private void AnnotateAutoLabels()
+        {
             AutoLabel.Style style = ProjectProps.AutoLabelStyle;
             Debug.Assert(style != AutoLabel.Style.Simple);
 
             // We don't have a list of auto labels, so just pick them out of anattribs.
-            for (int offset = 0; offset < mAnattribs.Length; offset++) {
+            for (int offset = 0; offset < mAnattribs.Length; offset++)
+            {
                 Anattrib attr = mAnattribs[offset];
-                if (attr.Symbol != null && attr.Symbol.SymbolSource == Symbol.Source.Auto) {
+                if (attr.Symbol != null && attr.Symbol.SymbolSource == Symbol.Source.Auto)
+                {
                     XrefSet xset = GetXrefSet(offset);
-                    if (xset == null) {
+                    if (xset == null)
+                    {
                         // Nothing useful to do here. This is unexpected, since auto-labels
                         // should only exist because something referenced the offset.
                         continue;
                     }
                     Symbol newSym =
                         AutoLabel.GenerateAnnotatedLabel(attr.Address, SymbolTable, xset, style);
-                    if (!newSym.Equals(attr.Symbol)) {
+                    if (!newSym.Equals(attr.Symbol))
+                    {
                         //Debug.WriteLine("Replace " + attr.Symbol.Label + " with " +newSym.Label);
 
                         // Replace the symbol in Anattribs, update the symbol table, then
@@ -1854,15 +2078,19 @@ namespace SourceGen {
         /// 
         /// Call this after Xrefs are generated.
         /// </summary>
-        private void GenerateActiveDefSymbolList() {
+        private void GenerateActiveDefSymbolList()
+        {
             ActiveDefSymbolList.Clear();
 
-            foreach (Symbol sym in SymbolTable) {
-                if (!(sym is DefSymbol) || sym.IsVariable) {
+            foreach (Symbol sym in SymbolTable)
+            {
+                if (!(sym is DefSymbol) || sym.IsVariable)
+                {
                     continue;
                 }
                 DefSymbol defSym = sym as DefSymbol;
-                if (defSym.Xrefs.Count == 0) {
+                if (defSym.Xrefs.Count == 0)
+                {
                     continue;
                 }
                 ActiveDefSymbolList.Add(defSym);
@@ -1872,21 +2100,30 @@ namespace SourceGen {
             // - constants appear before addresses
             // - ascending numeric value, wider items first
             // - ascending label
-            ActiveDefSymbolList.Sort(delegate (DefSymbol a, DefSymbol b) {
+            ActiveDefSymbolList.Sort(delegate (DefSymbol a, DefSymbol b)
+            {
                 // Put constants first.
                 int ca = (a.IsConstant) ? 1 : 0;
                 int cb = (b.IsConstant) ? 1 : 0;
-                if (ca != cb) {
+                if (ca != cb)
+                {
                     return cb - ca;
                 }
 
-                if (a.Value < b.Value) {
+                if (a.Value < b.Value)
+                {
                     return -1;
-                } else if (a.Value > b.Value) {
+                }
+                else if (a.Value > b.Value)
+                {
                     return 1;
-                } else if (DefSymbol.IsWider(a, b)) {
+                }
+                else if (DefSymbol.IsWider(a, b))
+                {
                     return -1;
-                } else if (DefSymbol.IsWider(b, a)) {
+                }
+                else if (DefSymbol.IsWider(b, a))
+                {
                     return 1;
                 }
                 return Asm65.Label.LABEL_COMPARER.Compare(a.Label, b.Label);
@@ -1911,7 +2148,8 @@ namespace SourceGen {
         /// </summary>
         /// <param name="newList">List of new format descriptors.</param>
         /// <returns>Change set.</returns>
-        public ChangeSet GenerateFormatMergeSet(SortedList<int, FormatDescriptor> newList) {
+        public ChangeSet GenerateFormatMergeSet(SortedList<int, FormatDescriptor> newList)
+        {
             Debug.WriteLine("Generating format merge set...");
             ChangeSet cs = new ChangeSet(newList.Count * 2);
 
@@ -1931,10 +2169,12 @@ namespace SourceGen {
             // conflicts, we create a removal object, and advance the main index.
             int mainIndex = 0;
             int newIndex = 0;
-            while (newIndex < newKeys.Count) {
+            while (newIndex < newKeys.Count)
+            {
                 int newOffset = newKeys[newIndex];
                 int newLength = newValues[newIndex].Length;
-                if (mainIndex >= mainKeys.Count) {
+                if (mainIndex >= mainKeys.Count)
+                {
                     // We've run off the end of the main list.  Just add the new item.
                     UndoableChange uc = UndoableChange.CreateActualOperandFormatChange(
                         newOffset, null, newValues[newIndex]);
@@ -1953,7 +2193,8 @@ namespace SourceGen {
                 int interStart = Math.Max(mainOffset, newOffset);
                 int interEnd = Math.Min(mainOffset + mainLength, newOffset + newLength);
                 // exclusive end point, so interEnd == interStart means no overlap
-                if (interEnd > interStart) {
+                if (interEnd > interStart)
+                {
                     Debug.WriteLine("Found overlap: main(+" + mainOffset.ToString("x6") +
                         "," + mainLength + ") : new(+" + newOffset.ToString("x6") +
                         "," + newLength + ")");
@@ -1961,17 +2202,23 @@ namespace SourceGen {
                     // See if the initial offsets are identical.  If so, put the add and
                     // remove into a single change.  This isn't strictly necessary, but it's
                     // slightly more efficient.
-                    if (mainOffset == newOffset) {
+                    if (mainOffset == newOffset)
+                    {
                         // Check to see if the descriptors are identical.  If so, ignore this.
-                        if (mainValues[mainIndex] == newValues[newIndex]) {
+                        if (mainValues[mainIndex] == newValues[newIndex])
+                        {
                             Debug.WriteLine(" --> no-op change " + newValues[newIndex]);
-                        } else {
+                        }
+                        else
+                        {
                             Debug.WriteLine(" --> replace change " + newValues[newIndex]);
                             UndoableChange uc = UndoableChange.CreateActualOperandFormatChange(
                                 newOffset, mainValues[mainIndex], newValues[newIndex]);
                             cs.AddNonNull(uc);
                         }
-                    } else {
+                    }
+                    else
+                    {
                         // Remove the old entry, add the new entry.
                         Debug.WriteLine(" --> remove/add change " + newValues[newIndex]);
                         UndoableChange ruc = UndoableChange.CreateActualOperandFormatChange(
@@ -1984,13 +2231,15 @@ namespace SourceGen {
                     newIndex++;
 
                     // Remove all other main-list entries that overlap with this one.
-                    while (++mainIndex < mainKeys.Count) {
+                    while (++mainIndex < mainKeys.Count)
+                    {
                         mainOffset = mainKeys[mainIndex];
                         mainLength = mainValues[mainIndex].Length;
                         interStart = Math.Max(mainOffset, newOffset);
                         interEnd = Math.Min(mainOffset + mainLength, newOffset + newLength);
                         // exclusive end point, so interEnd == interStart means no overlap
-                        if (interEnd <= interStart) {
+                        if (interEnd <= interStart)
+                        {
                             break;
                         }
                         Debug.WriteLine(" also remove +" + mainOffset.ToString("x6") +
@@ -1999,13 +2248,18 @@ namespace SourceGen {
                             mainOffset, mainValues[mainIndex], null);
                         cs.AddNonNull(uc);
                     }
-                } else {
+                }
+                else
+                {
                     // No overlap.  If the main entry is earlier, we can cross it off the list
                     // and advance to the next one.  Otherwise, we add the change and advance
                     // that list.
-                    if (mainOffset < newOffset) {
+                    if (mainOffset < newOffset)
+                    {
                         mainIndex++;
-                    } else {
+                    }
+                    else
+                    {
                         Debug.WriteLine("Add non-overlap " + newOffset.ToString("x6") +
                             newValues[newIndex]);
                         UndoableChange uc = UndoableChange.CreateActualOperandFormatChange(
@@ -2028,7 +2282,8 @@ namespace SourceGen {
         /// 
         /// Bear in mind that Anattrib is a struct, and thus the return value is a copy.
         /// </summary>
-        public Anattrib GetAnattrib(int offset) {
+        public Anattrib GetAnattrib(int offset)
+        {
             return mAnattribs[offset];
         }
 
@@ -2039,7 +2294,8 @@ namespace SourceGen {
         /// </summary>
         /// <param name="offset">Offset of interest.</param>
         /// <returns>True if a comment, note, or visualization was found.</returns>
-        public bool HasCommentNoteOrVis(int offset) {
+        public bool HasCommentNoteOrVis(int offset)
+        {
             return (LongComments.ContainsKey(offset) ||
                     Notes.ContainsKey(offset) ||
                     VisualizationSets.ContainsKey(offset));
@@ -2064,15 +2320,18 @@ namespace SourceGen {
         /// Sets the save index equal to the undo position.  Do this after the file has
         /// been successfully saved.
         /// </summary>
-        public void ResetDirtyFlag() {
+        public void ResetDirtyFlag()
+        {
             mUndoSaveIndex = mUndoTop;
         }
 
         /// <summary>
         /// Returns the next undo operation, and moves the pointer to the previous item.
         /// </summary>
-        public ChangeSet PopUndoSet() {
-            if (!CanUndo) {
+        public ChangeSet PopUndoSet()
+        {
+            if (!CanUndo)
+            {
                 throw new Exception("Can't undo");
             }
             Debug.WriteLine("PopUndoSet: returning entry " + (mUndoTop - 1) + ": " +
@@ -2084,8 +2343,10 @@ namespace SourceGen {
         /// Returns the next redo operation, and moves the pointer to the next item.
         /// </summary>
         /// <returns></returns>
-        public ChangeSet PopRedoSet() {
-            if (!CanRedo) {
+        public ChangeSet PopRedoSet()
+        {
+            if (!CanRedo)
+            {
                 throw new Exception("Can't redo");
             }
             Debug.WriteLine("PopRedoSet: returning entry " + mUndoTop + ": " +
@@ -2100,14 +2361,17 @@ namespace SourceGen {
         /// We currently allow empty sets.
         /// </summary>
         /// <param name="changeSet">Set to push.</param>
-        public void PushChangeSet(ChangeSet changeSet) {
-            if (IsReadOnly) {
+        public void PushChangeSet(ChangeSet changeSet)
+        {
+            if (IsReadOnly)
+            {
                 return;
             }
             Debug.WriteLine("PushChangeSet: adding " + changeSet);
 
             // Remove all of the "redo" entries from the current position to the end.
-            if (mUndoTop < mUndoList.Count) {
+            if (mUndoTop < mUndoList.Count)
+            {
                 Debug.WriteLine("PushChangeSet: removing " + (mUndoList.Count - mUndoTop) +
                     " entries");
                 mUndoList.RemoveRange(mUndoTop, mUndoList.Count - mUndoTop);
@@ -2120,7 +2384,8 @@ namespace SourceGen {
             // the "undo top" and "save index" will be equal, which will make us think the
             // file doesn't need to be saved.  In reality there is no longer any undo index that
             // matches the saved file state.
-            if (mUndoSaveIndex >= mUndoTop) {
+            if (mUndoSaveIndex >= mUndoTop)
+            {
                 mUndoSaveIndex = -1;
             }
         }
@@ -2130,7 +2395,8 @@ namespace SourceGen {
         /// if we hit "undo".
         /// </summary>
         /// <returns>The change set.  The caller must not modify it.</returns>
-        public ChangeSet GetTopChange() {
+        public ChangeSet GetTopChange()
+        {
             Debug.Assert(mUndoList.Count > 0);
             Debug.Assert(mUndoTop > 0);
             return mUndoList[mUndoTop - 1];
@@ -2139,32 +2405,39 @@ namespace SourceGen {
         /// <summary>
         /// Generate undo/redo history, for the debug window.
         /// </summary>
-        public string DebugGetUndoRedoHistory() {
+        public string DebugGetUndoRedoHistory()
+        {
             StringBuilder sb = new StringBuilder();
             sb.Append("Bracketed change will be overwritten by next action\r\n\r\n");
 
-            for (int i = 0; i < mUndoList.Count; i++) {
+            for (int i = 0; i < mUndoList.Count; i++)
+            {
                 ChangeSet cs = mUndoList[i];
 
                 char lbr, rbr;
-                if (i == mUndoTop) {
+                if (i == mUndoTop)
+                {
                     lbr = '[';
                     rbr = ']';
-                } else {
+                }
+                else
+                {
                     lbr = rbr = ' ';
                 }
                 sb.AppendFormat("{0}{3,3:D}{1}{2}: {4} change{5}\r\n",
                     lbr, rbr, i == mUndoSaveIndex ? "*" : " ",
                     i, cs.Count, cs.Count == 1 ? "" : "s");
 
-                for (int j = 0; j < cs.Count; j++) {
+                for (int j = 0; j < cs.Count; j++)
+                {
                     UndoableChange uc = cs[j];
                     sb.AppendFormat("       type={0} offset=+{1} reReq={2}\r\n",
                         uc.Type, uc.HasOffset ? uc.Offset.ToString("x6") : "N/A",
                         uc.ReanalysisRequired);
                 }
             }
-            if (mUndoTop == mUndoList.Count) {
+            if (mUndoTop == mUndoList.Count)
+            {
                 sb.AppendFormat("[ - ]{0}\r\n", mUndoTop == mUndoSaveIndex ? "*" : " ");
             }
 
@@ -2181,9 +2454,11 @@ namespace SourceGen {
         /// <returns>An indication of the level of reanalysis required.  If this returns None,
         ///   the list of offsets to update will be in affectedOffsets.</returns>
         public UndoableChange.ReanalysisScope ApplyChanges(ChangeSet cs, bool backward,
-                out RangeSet affectedOffsets) {
+                out RangeSet affectedOffsets)
+        {
             affectedOffsets = new RangeSet();
-            if (IsReadOnly) {
+            if (IsReadOnly)
+            {
                 return UndoableChange.ReanalysisScope.None;
             }
 
@@ -2192,40 +2467,50 @@ namespace SourceGen {
             // TODO(maybe): if changes overlap, we need to apply them in reverse order when
             //   "backward" is set.  This requires a reverse-order enumerator from
             //   ChangeSet.  Not currently needed.
-            foreach (UndoableChange uc in cs) {
+            foreach (UndoableChange uc in cs)
+            {
                 object oldValue, newValue;
 
                 // Unpack change, flipping old/new for undo.
-                if (!backward) {
+                if (!backward)
+                {
                     oldValue = uc.OldValue;
                     newValue = uc.NewValue;
-                } else {
+                }
+                else
+                {
                     oldValue = uc.NewValue;
                     newValue = uc.OldValue;
                 }
                 int offset = uc.Offset;
 
-                switch (uc.Type) {
+                switch (uc.Type)
+                {
                     case UndoableChange.ChangeType.Dummy:
                         //if (uc.ReanalysisRequired == UndoableChange.ReanalysisFlags.None) {
                         //    affectedOffsets.AddRange(0, FileData.Length - 1);
                         //}
                         break;
-                    case UndoableChange.ChangeType.SetAddress: {
+                    case UndoableChange.ChangeType.SetAddress:
+                        {
                             AddressMap.AddressMapEntry oldEnt =
                                 (AddressMap.AddressMapEntry)oldValue;
                             AddressMap.AddressMapEntry newEnt =
                                 (AddressMap.AddressMapEntry)newValue;
                             AddressMap addrMap = AddrMap;
-                            if (oldEnt != null) {
+                            if (oldEnt != null)
+                            {
                                 // remove existing entry, possibly replacing it in the next step
-                                if (!addrMap.RemoveEntry(oldEnt.Offset, oldEnt.Length)) {
+                                if (!addrMap.RemoveEntry(oldEnt.Offset, oldEnt.Length))
+                                {
                                     Debug.Assert(false, "failed removing region");
                                 }
                             }
-                            if (newValue != null) {
+                            if (newValue != null)
+                            {
                                 // adding new or replacement entry
-                                if (addrMap.AddEntry(newEnt) != AddressMap.AddResult.Okay) {
+                                if (addrMap.AddEntry(newEnt) != AddressMap.AddResult.Okay)
+                                {
                                     Debug.Assert(false, "failed adding region");
                                 }
                             }
@@ -2239,17 +2524,22 @@ namespace SourceGen {
                                 UndoableChange.ReanalysisScope.CodeAndData);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetDataBank: {
+                    case UndoableChange.ChangeType.SetDataBank:
+                        {
                             // If there's no entry, treat it as an entry with value = Unknown.
                             DbrOverrides.TryGetValue(offset, out CodeAnalysis.DbrValue current);
-                            if (current != (CodeAnalysis.DbrValue)oldValue) {
+                            if (current != (CodeAnalysis.DbrValue)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old DBR value mismatch (" +
                                     current + " vs " + oldValue + ")");
                                 Debug.Assert(false);
                             }
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 DbrOverrides.Remove(offset);
-                            } else {
+                            }
+                            else
+                            {
                                 DbrOverrides[offset] = (CodeAnalysis.DbrValue)newValue;
                             }
 
@@ -2258,7 +2548,8 @@ namespace SourceGen {
                                 UndoableChange.ReanalysisScope.CodeAndData);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetAnalyzerTag: {
+                    case UndoableChange.ChangeType.SetAnalyzerTag:
+                        {
                             // Always requires full code+data re-analysis.
                             ApplyAnalyzerTags((TypedRangeSet)oldValue, (TypedRangeSet)newValue);
                             // ignore affectedOffsets
@@ -2266,8 +2557,10 @@ namespace SourceGen {
                                 UndoableChange.ReanalysisScope.CodeAndData);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetStatusFlagOverride: {
-                            if (StatusFlagOverrides[offset] != (StatusFlags)oldValue) {
+                    case UndoableChange.ChangeType.SetStatusFlagOverride:
+                        {
+                            if (StatusFlagOverrides[offset] != (StatusFlags)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old status flag mismatch (" +
                                     StatusFlagOverrides[offset] + " vs " +
                                     (StatusFlags)oldValue + ")");
@@ -2279,26 +2572,31 @@ namespace SourceGen {
                                 UndoableChange.ReanalysisScope.CodeAndData);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetLabel: {
+                    case UndoableChange.ChangeType.SetLabel:
+                        {
                             // NOTE: this is about managing changes to UserLabels.  Adding
                             // or removing a user-defined label requires a full reanalysis,
                             // even if there was already an auto-generated label present,
                             // so we don't need to undo/redo Anattribs for anything except
                             // for renaming a user-defined label.
                             UserLabels.TryGetValue(offset, out Symbol oldSym);
-                            if (oldSym != (Symbol) oldValue) {
+                            if (oldSym != (Symbol)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old label value mismatch ('" +
                                     oldSym + "' vs '" + oldValue + "')");
                                 Debug.Assert(false);
                             }
 
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 // We're removing a user label.
                                 UserLabels.Remove(offset);
                                 SymbolTable.Remove((Symbol)oldValue);   // unnecessary? will regen
                                 Debug.Assert(uc.ReanalysisRequired ==
                                     UndoableChange.ReanalysisScope.DataOnly);
-                            } else {
+                            }
+                            else
+                            {
                                 // We're adding or renaming a user label.
                                 //
                                 // We should not be changing a label to the same value as an
@@ -2311,7 +2609,8 @@ namespace SourceGen {
                                 // We might be changing it to match an existing platform symbol
                                 // though.  (Ex: create label FOO, add .sym65 with symbol FOO,
                                 // edit FOO to BAR, then hit undo.)
-                                if (oldValue != null) {
+                                if (oldValue != null)
+                                {
                                     SymbolTable.Remove((Symbol)oldValue);
                                 }
                                 UserLabels[offset] = (Symbol)newValue;
@@ -2321,7 +2620,8 @@ namespace SourceGen {
                                     UndoableChange.ReanalysisScope.DataOnly);
                             }
 
-                            if (uc.ReanalysisRequired == UndoableChange.ReanalysisScope.None) {
+                            if (uc.ReanalysisRequired == UndoableChange.ReanalysisScope.None)
+                            {
                                 // Shouldn't really be "changing" from null to null, but
                                 // it's legal, so don't blow up if it happens.
                                 // (The assert on SymbolSource is older -- we now only care about
@@ -2332,7 +2632,8 @@ namespace SourceGen {
                                 // Not doing a full refresh, so keep this up to date.
                                 mAnattribs[offset].Symbol = (Symbol)newValue;
 
-                                if (oldValue != null) {
+                                if (oldValue != null)
+                                {
                                     // Update everything in Anattribs and OperandFormats that
                                     // referenced the old symbol.
                                     RefactorLabel(offset, ((Symbol)oldValue).Label,
@@ -2340,7 +2641,8 @@ namespace SourceGen {
 
                                     // If we fixed one or more broken references, we need to do
                                     // a deeper re-analysis.
-                                    if (foundExisting) {
+                                    if (foundExisting)
+                                    {
                                         Debug.WriteLine("Found existing broken ref to '" +
                                             ((Symbol)newValue).Label + "'");
                                         needReanalysis = UndoableChange.ReanalysisScope.DataOnly;
@@ -2356,23 +2658,30 @@ namespace SourceGen {
                                 // The UI doesn't let you directly edit a label to overwrite a
                                 // symbol, but see FOO/BAR example above.
                                 if (IsInProjectOrPlatformList((Symbol)oldValue) ||
-                                        IsInProjectOrPlatformList((Symbol)newValue)) {
+                                        IsInProjectOrPlatformList((Symbol)newValue))
+                                {
                                     Debug.WriteLine("Label change masked/unmasked " +
                                         "project/platform symbol");
                                     needReanalysis = UndoableChange.ReanalysisScope.DataOnly;
-                                } else {
+                                }
+                                else
+                                {
                                     AddAffectedLine(affectedOffsets, offset);
 
                                     // Use the cross-reference table to identify the offsets that
                                     // we need to update.
-                                    if (mXrefs.TryGetValue(offset, out XrefSet xrefs)) {
-                                        foreach (XrefSet.Xref xr in xrefs) {
+                                    if (mXrefs.TryGetValue(offset, out XrefSet xrefs))
+                                    {
+                                        foreach (XrefSet.Xref xr in xrefs)
+                                        {
                                             // Add all bytes in the instruction / data item.
                                             AddAffectedLine(affectedOffsets, xr.Offset);
                                         }
                                     }
                                 }
-                            } else {
+                            }
+                            else
+                            {
                                 // We're not calling RefactorLabel() here because we should
                                 // only be doing the reanalysis if we're adding or removing
                                 // the label, not renaming it.  If that changes, we'll need
@@ -2385,28 +2694,35 @@ namespace SourceGen {
                             // project/platform symbol changes because project property changes
                             // always update code and data.
                             if (mScriptManager.IsLabelSignificant((Symbol)oldValue,
-                                    (Symbol)newValue)) {
+                                    (Symbol)newValue))
+                            {
                                 Debug.WriteLine("Plugin claims symbol is significant");
                                 needReanalysis = UndoableChange.ReanalysisScope.CodeAndData;
                             }
                         }
                         break;
-                    case UndoableChange.ChangeType.SetOperandFormat: {
+                    case UndoableChange.ChangeType.SetOperandFormat:
+                        {
                             // Note this is used for data/inline-data as well as instructions.
                             OperandFormats.TryGetValue(offset, out FormatDescriptor current);
-                            if (current != (FormatDescriptor)oldValue) {
+                            if (current != (FormatDescriptor)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old operand format mismatch (" +
                                     current + " vs " + oldValue + ")");
                                 Debug.Assert(false);
                             }
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 OperandFormats.Remove(offset);
                                 mAnattribs[offset].DataDescriptor = null;
-                            } else {
+                            }
+                            else
+                            {
                                 OperandFormats[offset] = mAnattribs[offset].DataDescriptor =
                                     (FormatDescriptor)newValue;
                             }
-                            if (uc.ReanalysisRequired == UndoableChange.ReanalysisScope.None) {
+                            if (uc.ReanalysisRequired == UndoableChange.ReanalysisScope.None)
+                            {
                                 // Add every offset in the range.  The length might be changing
                                 // (e.g. an offset with a single byte is now the start of a
                                 // 10-byte string), so touch everything that was affected by
@@ -2414,23 +2730,28 @@ namespace SourceGen {
                                 // [This may no longer be necessary -- size changes now
                                 // require reanalysis.]
                                 int afctLen = 1;
-                                if (oldValue != null) {
+                                if (oldValue != null)
+                                {
                                     afctLen =
                                         Math.Max(afctLen, ((FormatDescriptor)oldValue).Length);
                                 }
-                                if (newValue != null) {
+                                if (newValue != null)
+                                {
                                     afctLen =
                                         Math.Max(afctLen, ((FormatDescriptor)newValue).Length);
                                 }
 
-                                for (int i = offset; i < offset + afctLen; i++) {
+                                for (int i = offset; i < offset + afctLen; i++)
+                                {
                                     affectedOffsets.Add(i);
                                 }
                             }
                         }
                         break;
-                    case UndoableChange.ChangeType.SetComment: {
-                            if (!Comments[offset].Equals(oldValue)) {
+                    case UndoableChange.ChangeType.SetComment:
+                        {
+                            if (!Comments[offset].Equals(oldValue))
+                            {
                                 Debug.WriteLine("GLITCH: old comment value mismatch ('" +
                                     Comments[offset] + "' vs '" + oldValue + "')");
                                 Debug.Assert(false);
@@ -2441,16 +2762,21 @@ namespace SourceGen {
                             AddAffectedLine(affectedOffsets, offset);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetLongComment: {
+                    case UndoableChange.ChangeType.SetLongComment:
+                        {
                             LongComments.TryGetValue(offset, out MultiLineComment current);
-                            if (current != (MultiLineComment)oldValue) {
+                            if (current != (MultiLineComment)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old long comment value mismatch ('" +
                                     current + "' vs '" + oldValue + "')");
                                 Debug.Assert(false);
                             }
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 LongComments.Remove(offset);
-                            } else {
+                            }
+                            else
+                            {
                                 LongComments[offset] = (MultiLineComment)newValue;
                             }
 
@@ -2458,16 +2784,21 @@ namespace SourceGen {
                             AddAffectedLine(affectedOffsets, offset);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetNote: {
+                    case UndoableChange.ChangeType.SetNote:
+                        {
                             Notes.TryGetValue(offset, out MultiLineComment current);
-                            if (current != (MultiLineComment)oldValue) {
+                            if (current != (MultiLineComment)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old note value mismatch ('" +
                                     current + "' vs '" + oldValue + "')");
                                 Debug.Assert(false);
                             }
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 Notes.Remove(offset);
-                            } else {
+                            }
+                            else
+                            {
                                 Notes[offset] = (MultiLineComment)newValue;
                             }
 
@@ -2475,7 +2806,8 @@ namespace SourceGen {
                             AddAffectedLine(affectedOffsets, offset);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetProjectProperties: {
+                    case UndoableChange.ChangeType.SetProjectProperties:
+                        {
                             bool needPlatformSymReload = !CommonUtil.Container.StringListEquals(
                                 ((ProjectProperties)oldValue).PlatformSymbolFileIdentifiers,
                                 ((ProjectProperties)newValue).PlatformSymbolFileIdentifiers,
@@ -2498,7 +2830,8 @@ namespace SourceGen {
                             Debug.WriteLine("Replacing CPU def object");
                             UpdateCpuDef();
 
-                            if (needPlatformSymReload || needExtScriptReload) {
+                            if (needPlatformSymReload || needExtScriptReload)
+                            {
                                 string errMsgs = LoadExternalFiles();
 
                                 // TODO(someday): if the plugin failed to compile, we will have
@@ -2508,7 +2841,8 @@ namespace SourceGen {
                                 //   be lazy and just drop them in a "messages from last update"
                                 //   box.
                             }
-                            if (needExtScriptReload) {
+                            if (needExtScriptReload)
+                            {
                                 ClearVisualizationCache();
                             }
                         }
@@ -2516,16 +2850,21 @@ namespace SourceGen {
                         Debug.Assert(uc.ReanalysisRequired ==
                             UndoableChange.ReanalysisScope.CodeAndData);
                         break;
-                    case UndoableChange.ChangeType.SetLocalVariableTable: {
+                    case UndoableChange.ChangeType.SetLocalVariableTable:
+                        {
                             LvTables.TryGetValue(offset, out LocalVariableTable current);
-                            if (current != (LocalVariableTable)oldValue) {
+                            if (current != (LocalVariableTable)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old lvt value mismatch: current=" +
                                     current + " old=" + (LocalVariableTable)oldValue);
                                 Debug.Assert(false);
                             }
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 LvTables.Remove(offset);
-                            } else {
+                            }
+                            else
+                            {
                                 LvTables[offset] = (LocalVariableTable)newValue;
                             }
                             // ignore affectedOffsets
@@ -2533,16 +2872,21 @@ namespace SourceGen {
                                 UndoableChange.ReanalysisScope.DataOnly);
                         }
                         break;
-                    case UndoableChange.ChangeType.SetVisualizationSet: {
+                    case UndoableChange.ChangeType.SetVisualizationSet:
+                        {
                             VisualizationSets.TryGetValue(offset, out VisualizationSet current);
-                            if (current != (VisualizationSet)oldValue) {
+                            if (current != (VisualizationSet)oldValue)
+                            {
                                 Debug.WriteLine("GLITCH: old visSet value mismatch: current=" +
                                     current + " old=" + (VisualizationSet)oldValue);
                                 Debug.Assert(false);
                             }
-                            if (newValue == null) {
+                            if (newValue == null)
+                            {
                                 VisualizationSets.Remove(offset);
-                            } else {
+                            }
+                            else
+                            {
                                 VisualizationSets[offset] = (VisualizationSet)newValue;
                             }
                             Debug.Assert(uc.ReanalysisRequired ==
@@ -2552,7 +2896,8 @@ namespace SourceGen {
                     default:
                         break;
                 }
-                if (needReanalysis < uc.ReanalysisRequired) {
+                if (needReanalysis < uc.ReanalysisRequired)
+                {
                     needReanalysis = uc.ReanalysisRequired;
                 }
             }
@@ -2571,16 +2916,20 @@ namespace SourceGen {
         /// </remarks>
         /// <param name="affectedOffsets">Range set to update.</param>
         /// <param name="offset">Offset of first byte.</param>
-        private void AddAffectedLine(RangeSet affectedOffsets, int offset) {
+        private void AddAffectedLine(RangeSet affectedOffsets, int offset)
+        {
             int len = 1;
-            if (offset >= 0) {  // header comment doesn't have an Anattrib entry
+            if (offset >= 0)
+            {  // header comment doesn't have an Anattrib entry
                 len = mAnattribs[offset].Length;
             }
-            if (len == 0) {
+            if (len == 0)
+            {
                 Debug.Assert(false, "Zero-length affected line?");
                 len = 1;
             }
-            for (int i = offset; i < offset + len; i++) {
+            for (int i = offset; i < offset + len; i++)
+            {
                 affectedOffsets.Add(i);
             }
         }
@@ -2588,8 +2937,10 @@ namespace SourceGen {
         /// <summary>
         /// Clears all cached visualization images.
         /// </summary>
-        public void ClearVisualizationCache() {
-            foreach (KeyValuePair<int, VisualizationSet> kvp in VisualizationSets) {
+        public void ClearVisualizationCache()
+        {
+            foreach (KeyValuePair<int, VisualizationSet> kvp in VisualizationSets)
+            {
                 kvp.Value.RefreshNeeded();
             }
         }
@@ -2602,9 +2953,11 @@ namespace SourceGen {
         /// <param name="oldLabel">Previous value.</param>
         /// <param name="foundExisting">Set to true if we found an existing (broken) reference
         ///   to the new label.</param>
-        private void RefactorLabel(int labelOffset, string oldLabel, out bool foundExisting) {
+        private void RefactorLabel(int labelOffset, string oldLabel, out bool foundExisting)
+        {
             foundExisting = false;
-            if (!mXrefs.TryGetValue(labelOffset, out XrefSet xrefs)) {
+            if (!mXrefs.TryGetValue(labelOffset, out XrefSet xrefs))
+            {
                 // This can happen if you add a label in a file section that nothing references,
                 // and then rename it.
                 Debug.WriteLine("RefactorLabel: no references to " + oldLabel);
@@ -2616,24 +2969,29 @@ namespace SourceGen {
             //
             // Update format descriptors in Anattribs.
             //
-            foreach (XrefSet.Xref xr in xrefs) {
+            foreach (XrefSet.Xref xr in xrefs)
+            {
                 FormatDescriptor dfd = mAnattribs[xr.Offset].DataDescriptor;
-                if (dfd == null) {
+                if (dfd == null)
+                {
                     // Should be a data target reference here?  Where'd the xref come from?
                     Debug.Assert(false);
                     continue;
                 }
-                if (!dfd.HasSymbol) {
+                if (!dfd.HasSymbol)
+                {
                     // The auto-gen stuff would have created a symbol, but the user can
                     // override that and display as e.g. hex.
                     continue;
                 }
-                if (Label.LABEL_COMPARER.Equals(newLabel, dfd.SymbolRef.Label)) {
+                if (Label.LABEL_COMPARER.Equals(newLabel, dfd.SymbolRef.Label))
+                {
                     // We found an existing, previously-broken reference to the new label.
                     // Let the caller know.
                     foundExisting = true;
                 }
-                if (!Label.LABEL_COMPARER.Equals(oldLabel, dfd.SymbolRef.Label)) {
+                if (!Label.LABEL_COMPARER.Equals(oldLabel, dfd.SymbolRef.Label))
+                {
                     // This can happen if the xref is based on the operand offset,
                     // but the user picked a different symbol.  The xref generator
                     // creates entries for both target offsets, but only one will
@@ -2649,15 +3007,19 @@ namespace SourceGen {
             //
             // Update value in OperandFormats.
             //
-            foreach (XrefSet.Xref xr in xrefs) {
-                if (!OperandFormats.TryGetValue(xr.Offset, out FormatDescriptor dfd)) {
+            foreach (XrefSet.Xref xr in xrefs)
+            {
+                if (!OperandFormats.TryGetValue(xr.Offset, out FormatDescriptor dfd))
+                {
                     // Probably an auto-generated symbol ref, so no entry in OperandFormats.
                     continue;
                 }
-                if (!dfd.HasSymbol) {
+                if (!dfd.HasSymbol)
+                {
                     continue;
                 }
-                if (!Label.LABEL_COMPARER.Equals(oldLabel, dfd.SymbolRef.Label)) {
+                if (!Label.LABEL_COMPARER.Equals(oldLabel, dfd.SymbolRef.Label))
+                {
                     continue;
                 }
 
@@ -2675,11 +3037,14 @@ namespace SourceGen {
         /// </summary>
         /// <param name="oldSet">Previous values; must match current contents.</param>
         /// <param name="newSet">Values to apply.</param>
-        private void ApplyAnalyzerTags(TypedRangeSet oldSet, TypedRangeSet newSet) {
+        private void ApplyAnalyzerTags(TypedRangeSet oldSet, TypedRangeSet newSet)
+        {
             CodeAnalysis.AnalyzerTag[] atags = AnalyzerTags;
-            foreach (TypedRangeSet.Tuple tuple in newSet) {
+            foreach (TypedRangeSet.Tuple tuple in newSet)
+            {
                 CodeAnalysis.AnalyzerTag curType = atags[tuple.Value];
-                if (!oldSet.GetType(tuple.Value, out int oldType) || oldType != (int)curType) {
+                if (!oldSet.GetType(tuple.Value, out int oldType) || oldType != (int)curType)
+                {
                     Debug.WriteLine("Type mismatch at " + tuple.Value);
                     Debug.Assert(false);
                 }
@@ -2708,22 +3073,30 @@ namespace SourceGen {
         /// </remarks>
         /// <param name="name">Label to find.</param>
         /// <returns>File offset associated with label, or -1 if not found.</returns>
-        public int FindLabelOffsetByName(string name) {
-            if (!SymbolTable.TryGetValue(name, out Symbol sym)) {
+        public int FindLabelOffsetByName(string name)
+        {
+            if (!SymbolTable.TryGetValue(name, out Symbol sym))
+            {
                 return -1;
             }
-            if (!sym.IsInternalLabel) {
-                if (sym.SymbolSource == Symbol.Source.AddrPreLabel) {
-                    foreach (AddressMap.AddressMapEntry ent in AddrMap) {
-                        if (ent.PreLabel == sym.Label) {
+            if (!sym.IsInternalLabel)
+            {
+                if (sym.SymbolSource == Symbol.Source.AddrPreLabel)
+                {
+                    foreach (AddressMap.AddressMapEntry ent in AddrMap)
+                    {
+                        if (ent.PreLabel == sym.Label)
+                        {
                             return ent.Offset;
                         }
                     }
                 }
                 return -1;
             }
-            for (int i = 0; i < mAnattribs.Length; i++) {
-                if (mAnattribs[i].Symbol == sym) {
+            for (int i = 0; i < mAnattribs.Length; i++)
+            {
+                if (mAnattribs[i].Symbol == sym)
+                {
                     return i;
                 }
             }
@@ -2739,26 +3112,33 @@ namespace SourceGen {
         /// <param name="targetOffset">If multiple labels are found, we want the one that is
         ///   closest to this offset.</param>
         /// <returns>The symbol found, or null if no match.</returns>
-        public Symbol FindBestNonUniqueLabel(string label, int targetOffset) {
+        public Symbol FindBestNonUniqueLabel(string label, int targetOffset)
+        {
             Symbol bestSym = null;
             int bestDelta = int.MaxValue;
 
             // Simple linear search.  Right now we're only doing this in a few specific
             // UI-driven situations (edit operand, goto label), so performance isn't crucial.
-            foreach (KeyValuePair<int, Symbol> kvp in UserLabels) {
+            foreach (KeyValuePair<int, Symbol> kvp in UserLabels)
+            {
                 Symbol sym = kvp.Value;
-                if (sym.SymbolType != Symbol.Type.NonUniqueLocalAddr) {
+                if (sym.SymbolType != Symbol.Type.NonUniqueLocalAddr)
+                {
                     continue;
                 }
-                if (sym.LabelWithoutTag == label) {
+                if (sym.LabelWithoutTag == label)
+                {
                     // found a match; is it the best one?
                     int delta = Math.Abs(kvp.Key - targetOffset);
-                    if (delta < bestDelta) {
+                    if (delta < bestDelta)
+                    {
                         //Debug.WriteLine("FindBest: " + sym.Label + "/" + delta + " better than " +
                         //    (bestSym != null ? bestSym.Label : "-") + "/" + bestDelta);
                         bestSym = sym;
                         bestDelta = delta;
-                    } else {
+                    }
+                    else
+                    {
                         //Debug.WriteLine("FindBest: " + sym.Label + "/" + delta + " not better than " +
                         //    (bestSym != null ? bestSym.Label : "-") + "/" + bestDelta);
                     }
@@ -2769,20 +3149,25 @@ namespace SourceGen {
         }
 
         // Punch-through functions; trying to avoid exposing ScriptManager for now.
-        public Dictionary<string, PluginCommon.IPlugin> GetActivePlugins() {
+        public IReadOnlyDictionary<string, PluginCommon.IPlugin> GetActivePlugins()
+        {
             return mScriptManager.GetActivePlugins();
         }
-        public PluginCommon.IPlugin GetPlugin(string scriptIdent) {
+        public PluginCommon.IPlugin GetPlugin(string scriptIdent)
+        {
             return mScriptManager.GetInstance(scriptIdent);
         }
-        public void PrepareScripts(PluginCommon.IApplication appRef) {
+        public void PrepareScripts(PluginCommon.IApplication appRef)
+        {
             mScriptManager.PrepareScripts(appRef);
         }
-        public void UnprepareScripts() {
+        public void UnprepareScripts()
+        {
             mScriptManager.UnprepareScripts();
         }
 
-        public void DebugRebootSandbox() {
+        public void DebugRebootSandbox()
+        {
             mScriptManager.RebootSandbox();
         }
 
@@ -2790,7 +3175,8 @@ namespace SourceGen {
         /// For debugging purposes, get some information about the currently loaded
         /// extension scripts.
         /// </summary>
-        public string DebugGetLoadedScriptInfo() {
+        public string DebugGetLoadedScriptInfo()
+        {
             return mScriptManager.DebugGetLoadedScriptInfo();
         }
     }

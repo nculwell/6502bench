@@ -27,7 +27,8 @@ using System.Windows.Media.Imaging;
 using Asm65;
 using PluginCommon;
 
-namespace SourceGen.WpfGui {
+namespace SourceGen.WpfGui
+{
     /// <summary>
     /// Visualization editor.
     /// </summary>
@@ -40,7 +41,8 @@ namespace SourceGen.WpfGui {
     /// The most significant difference is that, while bitmap animations are a collection
     /// of visualizations, wireframe animations are just additional parameters.
     /// </remarks>
-    public partial class EditVisualization : Window, INotifyPropertyChanged {
+    public partial class EditVisualization : Window, INotifyPropertyChanged
+    {
         /// <summary>
         /// New/edited visualization, only valid when dialog result is true.
         /// </summary>
@@ -76,7 +78,8 @@ namespace SourceGen.WpfGui {
         /// True if all properties are in valid ranges.  Determines whether the OK button
         /// is enabled.
         /// </summary>
-        public bool IsValid {
+        public bool IsValid
+        {
             get { return mIsValid; }
             set { mIsValid = value; OnPropertyChanged(); }
         }
@@ -85,14 +88,16 @@ namespace SourceGen.WpfGui {
         /// <summary>
         /// Visualization tag.
         /// </summary>
-        public string TagString {
+        public string TagString
+        {
             get { return mTagString; }
             set { mTagString = value; OnPropertyChanged(); UpdateControls(); }
         }
         private string mTagString;
 
         // Text turns red on error.
-        public Brush TagLabelBrush {
+        public Brush TagLabelBrush
+        {
             get { return mTagLabelBrush; }
             set { mTagLabelBrush = value; OnPropertyChanged(); }
         }
@@ -107,10 +112,12 @@ namespace SourceGen.WpfGui {
         /// an IPlugin reference because our reference would be a proxy object that expires,
         /// and there's no value in creating a Sponsor<> or playing keep-alive.
         /// </remarks>
-        public class VisualizationItem {
+        public class VisualizationItem
+        {
             public string ScriptIdent { get; private set; }
             public VisDescr VisDescriptor { get; private set; }
-            public VisualizationItem(string scriptIdent, VisDescr descr) {
+            public VisualizationItem(string scriptIdent, VisDescr descr)
+            {
                 ScriptIdent = scriptIdent;
                 VisDescriptor = descr;
             }
@@ -124,7 +131,8 @@ namespace SourceGen.WpfGui {
         /// <summary>
         /// Error message, shown in red.
         /// </summary>
-        public string PluginErrMessage {
+        public string PluginErrMessage
+        {
             get { return mPluginErrMessage; }
             set { mPluginErrMessage = value; OnPropertyChanged(); }
         }
@@ -137,7 +145,8 @@ namespace SourceGen.WpfGui {
         public string LastPluginMessage { get; set; }
 
         // Bitmap width/height indicator.
-        public string BitmapDimensions {
+        public string BitmapDimensions
+        {
             get { return mBitmapDimensions; }
             set { mBitmapDimensions = value; OnPropertyChanged(); }
         }
@@ -151,51 +160,59 @@ namespace SourceGen.WpfGui {
 
         // INotifyPropertyChanged implementation
         public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string propertyName = "") {
+        private void OnPropertyChanged([CallerMemberName] string propertyName = "")
+        {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         #region Wireframe Stuff
 
         // Visibility of the wireframe-specific UI.
-        public Visibility WireframeCtrlVisibility {
+        public Visibility WireframeCtrlVisibility
+        {
             get { return mWireframeCtrlVisibility; }
             set { mWireframeCtrlVisibility = value; OnPropertyChanged(); }
         }
         private Visibility mWireframeCtrlVisibility;
 
         // "Animated" checkbox.
-        public bool IsWireframeAnimated {
+        public bool IsWireframeAnimated
+        {
             get { return mIsWireframeAnimated; }
             set { mIsWireframeAnimated = value; OnPropertyChanged(); }
         }
         private bool mIsWireframeAnimated;
 
-        public int RotDeltaX {
+        public int RotDeltaX
+        {
             get { return mRotDeltaX; }
             set { mRotDeltaX = value; OnPropertyChanged(); }
         }
         private int mRotDeltaX;
 
-        public int RotDeltaY {
+        public int RotDeltaY
+        {
             get { return mRotDeltaY; }
             set { mRotDeltaY = value; OnPropertyChanged(); }
         }
         private int mRotDeltaY;
 
-        public int RotDeltaZ {
+        public int RotDeltaZ
+        {
             get { return mRotDeltaZ; }
             set { mRotDeltaZ = value; OnPropertyChanged(); }
         }
         private int mRotDeltaZ;
 
-        public int FrameCount {
+        public int FrameCount
+        {
             get { return mFrameCount; }
             set { mFrameCount = value; OnPropertyChanged(); }
         }
         private int mFrameCount;
 
-        public int FrameDelayMsec {
+        public int FrameDelayMsec
+        {
             get { return mFrameDelayMsec; }
             set { mFrameDelayMsec = value; OnPropertyChanged(); }
         }
@@ -203,27 +220,33 @@ namespace SourceGen.WpfGui {
 
         #endregion Wireframe Stuff
 
-        private class ScriptSupport : MarshalByRefObject, PluginCommon.IApplication {
+        private class ScriptSupport : MarshalByRefObject, PluginCommon.IApplication
+        {
             private EditVisualization mOuter;
 
-            public ScriptSupport(EditVisualization outer) {
+            public ScriptSupport(EditVisualization outer)
+            {
                 mOuter = outer;
             }
 
-            public void ReportError(string msg) {
+            public void ReportError(string msg)
+            {
                 mOuter.LastPluginMessage = msg;
                 DebugLog(msg);
             }
 
-            public void DebugLog(string msg) {
+            public void DebugLog(string msg)
+            {
                 Debug.WriteLine("Vis plugin: " + msg);
             }
 
-            public bool SetOperandFormat(int offset, DataSubType subType, string label) {
+            public bool SetOperandFormat(int offset, DataSubType subType, string label)
+            {
                 throw new InvalidOperationException();
             }
             public bool SetInlineDataFormat(int offset, int length, DataType type,
-                    DataSubType subType, string label) {
+                    DataSubType subType, string label)
+            {
                 throw new InvalidOperationException();
             }
         }
@@ -243,7 +266,8 @@ namespace SourceGen.WpfGui {
         /// <param name="formatter">Text formatter.</param>
         /// <param name="vis">Visualization to edit, or null if this is new.</param>
         public EditVisualization(Window owner, DisasmProject proj, Formatter formatter,
-                int setOffset, SortedList<int, VisualizationSet> editedList, Visualization vis) {
+                int setOffset, SortedList<int, VisualizationSet> editedList, Visualization vis)
+        {
             InitializeComponent();
             Owner = owner;
             DataContext = this;
@@ -258,26 +282,35 @@ namespace SourceGen.WpfGui {
             mProject.PrepareScripts(mScriptSupport);
 
             // this will initialize mTagLabelBrush
-            if (vis != null) {
+            if (vis != null)
+            {
                 TagString = vis.Tag;
-            } else {
+            }
+            else
+            {
                 // Could make this unique, but probably not worth the bother.
                 TagString = "vis" + mSetOffset.ToString("x6");
             }
 
             int visSelection = -1;
             VisualizationList = new List<VisualizationItem>();
-            Dictionary<string, IPlugin> plugins = proj.GetActivePlugins();
-            foreach (KeyValuePair<string, IPlugin> kvp in plugins) {
-                if (!(kvp.Value is IPlugin_Visualizer)) {
+            IReadOnlyDictionary<string, IPlugin> plugins = proj.GetActivePlugins();
+            foreach (KeyValuePair<string, IPlugin> kvp in plugins)
+            {
+                if (!(kvp.Value is IPlugin_Visualizer))
+                {
                     continue;
                 }
                 IPlugin_Visualizer vplug = (IPlugin_Visualizer)kvp.Value;
-                foreach (VisDescr descr in vplug.GetVisGenDescrs()) {
-                    if (vis != null && vis.VisGenIdent == descr.Ident) {
+                foreach (VisDescr descr in vplug.GetVisGenDescrs())
+                {
+                    if (vis != null && vis.VisGenIdent == descr.Ident)
+                    {
                         // found matching descriptor, set selection to this
                         visSelection = VisualizationList.Count;
-                    } else if (visSelection < 0 && descr.Ident == sLastVisIdent) {
+                    }
+                    else if (visSelection < 0 && descr.Ident == sLastVisIdent)
+                    {
                         // we used this one last time, use it if nothing better comes along
                         visSelection = VisualizationList.Count;
                     }
@@ -286,7 +319,8 @@ namespace SourceGen.WpfGui {
             }
 
             // Set the selection.  This should cause the sel change event to fire.
-            if (visSelection < 0) {
+            if (visSelection < 0)
+            {
                 visSelection = 0;
             }
             visComboBox.SelectedIndex = visSelection;
@@ -301,35 +335,46 @@ namespace SourceGen.WpfGui {
         /// If we don't find a corresponding entry in the Visualization, we use the
         /// default value.
         /// </remarks>
-        private void GenerateParamControls(VisDescr descr) {
+        private void GenerateParamControls(VisDescr descr)
+        {
             VisParamDescr[] paramDescrs = descr.VisParamDescrs;
 
             ParameterList.Clear();
-            foreach (VisParamDescr vpd in paramDescrs) {
+            foreach (VisParamDescr vpd in paramDescrs)
+            {
                 string rangeStr = string.Empty;
                 object defaultVal = vpd.DefaultValue;
 
                 // If we're editing a visualization, use the values from that as default.
-                if (mOrigVis != null) {
-                    if (mOrigVis.VisGenParams.TryGetValue(vpd.Name, out object val)) {
+                if (mOrigVis != null)
+                {
+                    if (mOrigVis.VisGenParams.TryGetValue(vpd.Name, out object val))
+                    {
                         // Do we need to confirm that val has the correct type?
                         defaultVal = val;
                     }
-                } else {
+                }
+                else
+                {
                     // New visualization.  Use the set's offset as the default value for
                     // any parameter called "offset".  Otherwise try to pull a value with
                     // the same name out of the last thing we edited.
-                    if (vpd.Name.ToLowerInvariant() == "offset") {
+                    if (vpd.Name.ToLowerInvariant() == "offset")
+                    {
                         defaultVal = mSetOffset;
-                    } else if (sLastParams.TryGetValue(vpd.Name, out object value)) {
+                    }
+                    else if (sLastParams.TryGetValue(vpd.Name, out object value))
+                    {
                         defaultVal = value;
                     }
                 }
 
                 // Set up rangeStr, if appropriate.
                 VisParamDescr altVpd = vpd;
-                if (vpd.CsType == typeof(int) || vpd.CsType == typeof(float)) {
-                    if (vpd.Special == VisParamDescr.SpecialMode.Offset) {
+                if (vpd.CsType == typeof(int) || vpd.CsType == typeof(float))
+                {
+                    if (vpd.Special == VisParamDescr.SpecialMode.Offset)
+                    {
                         defaultVal = mFormatter.FormatOffset24((int)defaultVal);
                         rangeStr = "[" + mFormatter.FormatOffset24(0) + "," +
                             mFormatter.FormatOffset24(mProject.FileDataLength - 1) + "]";
@@ -337,7 +382,9 @@ namespace SourceGen.WpfGui {
                         // Replace the vpd to provide a different min/max.
                         altVpd = new VisParamDescr(vpd.UiLabel, vpd.Name, vpd.CsType,
                             0, mProject.FileDataLength - 1, vpd.Special, vpd.DefaultValue);
-                    } else {
+                    }
+                    else
+                    {
                         rangeStr = "[" + vpd.Min + "," + vpd.Max + "]";
                     }
                 }
@@ -348,7 +395,8 @@ namespace SourceGen.WpfGui {
             }
         }
 
-        private void Window_ContentRendered(object sender, EventArgs e) {
+        private void Window_ContentRendered(object sender, EventArgs e)
+        {
             // https://stackoverflow.com/a/31407415/294248
             // After the window's size has been established to minimally wrap the elements,
             // we set the minimum width to the current width, and un-freeze the preview image
@@ -369,17 +417,20 @@ namespace SourceGen.WpfGui {
             tagTextBox.Focus();
         }
 
-        private void Window_Closed(object sender, EventArgs e) {
+        private void Window_Closed(object sender, EventArgs e)
+        {
             mProject.UnprepareScripts();
         }
 
-        private void OkButton_Click(object sender, RoutedEventArgs e) {
+        private void OkButton_Click(object sender, RoutedEventArgs e)
+        {
             NewVis = PrepResultVis();
             sLastVisIdent = NewVis.VisGenIdent;
             DialogResult = true;
         }
 
-        private void ExportButton_Click(object sender, RoutedEventArgs e) {
+        private void ExportButton_Click(object sender, RoutedEventArgs e)
+        {
             Visualization vis = PrepResultVis();
             ExportVisualization dlg = new ExportVisualization(this, vis, mWireObj,
                 "vis" + mSetOffset.ToString("x6")); // tag may not be valid filename, use offset
@@ -391,7 +442,8 @@ namespace SourceGen.WpfGui {
         /// the currents state of the controls.
         /// </summary>
         /// <returns>New Visualization or VisWireframeAnimation object.</returns>
-        private Visualization PrepResultVis() {
+        private Visualization PrepResultVis()
+        {
             VisualizationItem item = (VisualizationItem)visComboBox.SelectedItem;
             Debug.Assert(item != null);
 
@@ -403,19 +455,25 @@ namespace SourceGen.WpfGui {
             string trimTag = Visualization.TrimAndValidateTag(TagString, out bool isTagValid);
             Debug.Assert(isTagValid);
             Visualization vis;
-            if (isWireframe && IsWireframeAnimated) {
+            if (isWireframe && IsWireframeAnimated)
+            {
                 vis = new VisWireframeAnimation(trimTag, item.VisDescriptor.Ident, valueDict,
                     mOrigVis, mWireObj);
-            } else {
+            }
+            else
+            {
                 vis = new Visualization(trimTag, item.VisDescriptor.Ident, valueDict, mOrigVis);
             }
 
             // Set the thumbnail image.
-            if (isWireframe) {
+            if (isWireframe)
+            {
                 Debug.Assert(mWireObj != null);
                 vis.CachedImage = Visualization.GenerateWireframeImage(mWireObj,
                     Visualization.THUMBNAIL_DIM, valueDict);
-            } else {
+            }
+            else
+            {
                 Debug.Assert(mThumbnail != null);
                 vis.CachedImage = mThumbnail;
             }
@@ -423,30 +481,40 @@ namespace SourceGen.WpfGui {
             return vis;
         }
 
-        private ReadOnlyDictionary<string, object> CreateVisGenParams(bool includeWire) {
+        private ReadOnlyDictionary<string, object> CreateVisGenParams(bool includeWire)
+        {
             // Generate value dictionary.
             Dictionary<string, object> valueDict =
                 new Dictionary<string, object>(ParameterList.Count);
-            foreach (ParameterValue pv in ParameterList) {
-                if (pv.Descr.CsType == typeof(bool)) {
+            foreach (ParameterValue pv in ParameterList)
+            {
+                if (pv.Descr.CsType == typeof(bool))
+                {
                     Debug.Assert(pv.Value is bool);
                     valueDict.Add(pv.Descr.Name, (bool)pv.Value);
-                } else if (pv.Descr.CsType == typeof(int)) {
+                }
+                else if (pv.Descr.CsType == typeof(int))
+                {
                     bool ok = ParseIntObj(pv.Value, pv.Descr.Special, out int intVal);
                     Debug.Assert(ok);
                     valueDict.Add(pv.Descr.Name, intVal);
-                } else if (pv.Descr.CsType == typeof(float)) {
+                }
+                else if (pv.Descr.CsType == typeof(float))
+                {
                     bool ok = ParseFloatObj(pv.Value, out float floatVal);
                     Debug.Assert(ok);
                     valueDict.Add(pv.Descr.Name, floatVal);
-                } else {
+                }
+                else
+                {
                     // skip it
                     Debug.Assert(false);
                 }
             }
 
             WireframeCtrlVisibility = includeWire ? Visibility.Visible : Visibility.Collapsed;
-            if (includeWire) {
+            if (includeWire)
+            {
                 // Slider control limits values to [0,359].
                 int rotX = (int)initialXSlider.Value;
                 int rotY = (int)initialYSlider.Value;
@@ -462,7 +530,8 @@ namespace SourceGen.WpfGui {
                 // parameter manipulation is all in one place.
                 valueDict.Add(VisWireframeAnimation.P_IS_ANIMATED, IsWireframeAnimated);
 
-                if (IsWireframeAnimated) {
+                if (IsWireframeAnimated)
+                {
                     // These could be any integer value, but the UI limits them to 4 chars, and
                     // it's all mod 360.
                     valueDict.Add(VisWireframeAnimation.P_DELTA_ROT_X, RotDeltaX);
@@ -481,8 +550,10 @@ namespace SourceGen.WpfGui {
             return new ReadOnlyDictionary<string, object>(valueDict);
         }
 
-        private bool ParseIntObj(object val, VisParamDescr.SpecialMode special, out int intVal) {
-            if (val is int) {
+        private bool ParseIntObj(object val, VisParamDescr.SpecialMode special, out int intVal)
+        {
+            if (val is int)
+            {
                 intVal = (int)val;
                 return true;
             }
@@ -490,81 +561,110 @@ namespace SourceGen.WpfGui {
             int numBase = (special == VisParamDescr.SpecialMode.Offset) ? 16 : 10;
 
             string trimStr = str.Trim();
-            if (trimStr.Length >= 1 && trimStr[0] == '+') {
+            if (trimStr.Length >= 1 && trimStr[0] == '+')
+            {
                 // May be present for an offset.  Just ignore it.  Don't use it as a radix char.
                 trimStr = trimStr.Remove(0, 1);
-            } else if (trimStr.Length >= 1 && trimStr[0] == '$') {
+            }
+            else if (trimStr.Length >= 1 && trimStr[0] == '$')
+            {
                 numBase = 16;
                 trimStr = trimStr.Remove(0, 1);
-            } else if (trimStr.Length >= 2 && trimStr[0] == '0' &&
-                    (trimStr[1] == 'x' || trimStr[1] == 'X')) {
+            }
+            else if (trimStr.Length >= 2 && trimStr[0] == '0' &&
+                  (trimStr[1] == 'x' || trimStr[1] == 'X'))
+            {
                 numBase = 16;
                 trimStr = trimStr.Remove(0, 2);
             }
-            if (trimStr.Length == 0) {
+            if (trimStr.Length == 0)
+            {
                 intVal = -1;
                 return false;
             }
 
-            try {
+            try
+            {
                 intVal = Convert.ToInt32(trimStr, numBase);
                 return true;
-            } catch (Exception) {
+            }
+            catch (Exception)
+            {
                 intVal = -1;
                 return false;
             }
         }
 
-        private bool ParseFloatObj(object val, out float floatVal) {
-            if (val is float) {
+        private bool ParseFloatObj(object val, out float floatVal)
+        {
+            if (val is float)
+            {
                 floatVal = (float)val;
                 return true;
-            } else if (val is double) {
+            }
+            else if (val is double)
+            {
                 floatVal = (float)(double)val;
                 return true;
-            } else if (val is int) {
+            }
+            else if (val is int)
+            {
                 floatVal = (int)val;
                 return true;
             }
 
             string str = (string)val;
-            if (!float.TryParse(str, out floatVal)) {
+            if (!float.TryParse(str, out floatVal))
+            {
                 floatVal = 0.0f;
                 return false;
             }
             return true;
         }
 
-        private void UpdateControls() {
+        private void UpdateControls()
+        {
             IsValid = true;
 
-            foreach (ParameterValue pv in ParameterList) {
+            foreach (ParameterValue pv in ParameterList)
+            {
                 pv.ForegroundBrush = mDefaultLabelColor;
-                if (pv.Descr.CsType == typeof(bool)) {
+                if (pv.Descr.CsType == typeof(bool))
+                {
                     // always fine
                     continue;
-                } else if (pv.Descr.CsType == typeof(int)) {
+                }
+                else if (pv.Descr.CsType == typeof(int))
+                {
                     // integer, possibly Offset special
                     bool ok = ParseIntObj(pv.Value, pv.Descr.Special, out int intVal);
-                    if (ok && (intVal < (int)pv.Descr.Min || intVal > (int)pv.Descr.Max)) {
+                    if (ok && (intVal < (int)pv.Descr.Min || intVal > (int)pv.Descr.Max))
+                    {
                         // TODO(someday): make the range text red instead of the label
                         ok = false;
                     }
-                    if (!ok) {
+                    if (!ok)
+                    {
                         pv.ForegroundBrush = mErrorLabelColor;
                         IsValid = false;
                     }
-                } else if (pv.Descr.CsType == typeof(float)) {
+                }
+                else if (pv.Descr.CsType == typeof(float))
+                {
                     // float
                     bool ok = ParseFloatObj(pv.Value, out float floatVal);
-                    if (ok && (floatVal < (float)pv.Descr.Min || floatVal > (float)pv.Descr.Max)) {
+                    if (ok && (floatVal < (float)pv.Descr.Min || floatVal > (float)pv.Descr.Max))
+                    {
                         ok = false;
                     }
-                    if (!ok) {
+                    if (!ok)
+                    {
                         pv.ForegroundBrush = mErrorLabelColor;
                         IsValid = false;
                     }
-                } else {
+                }
+                else
+                {
                     // unexpected
                     Debug.Assert(false);
                 }
@@ -575,44 +675,61 @@ namespace SourceGen.WpfGui {
             BitmapDimensions = "?";
             previewGrid.Background = null;
             wireframePath.Data = new GeometryGroup();
-            if (!IsValid || item == null) {
+            if (!IsValid || item == null)
+            {
                 previewImage.Source = sBadParamsImage;
-            } else {
+            }
+            else
+            {
                 // Invoke the plugin.
                 PluginErrMessage = string.Empty;
 
                 IVisualization2d vis2d = null;
                 IVisualizationWireframe visWire = null;
                 ReadOnlyDictionary<string, object> parms = null;
-                try {
+                try
+                {
                     IPlugin_Visualizer plugin =
                         (IPlugin_Visualizer)mProject.GetPlugin(item.ScriptIdent);
-                    if (item.VisDescriptor.VisualizationType == VisDescr.VisType.Bitmap) {
+                    if (item.VisDescriptor.VisualizationType == VisDescr.VisType.Bitmap)
+                    {
                         parms = CreateVisGenParams(false);
                         vis2d = plugin.Generate2d(item.VisDescriptor, parms);
-                        if (vis2d == null) {
+                        if (vis2d == null)
+                        {
                             Debug.WriteLine("Vis2d generator returned null");
                         }
-                    } else if (item.VisDescriptor.VisualizationType == VisDescr.VisType.Wireframe) {
+                    }
+                    else if (item.VisDescriptor.VisualizationType == VisDescr.VisType.Wireframe)
+                    {
                         parms = CreateVisGenParams(true);
                         IPlugin_Visualizer_v2 plugin2 = (IPlugin_Visualizer_v2)plugin;
                         visWire = plugin2.GenerateWireframe(item.VisDescriptor, parms);
-                        if (visWire == null) {
+                        if (visWire == null)
+                        {
                             Debug.WriteLine("VisWire generator returned null");
                         }
-                    } else {
+                    }
+                    else
+                    {
                         Debug.Assert(false);
                     }
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     Debug.WriteLine("Vis generation failed: " + ex);
-                    if (string.IsNullOrEmpty(LastPluginMessage)) {
+                    if (string.IsNullOrEmpty(LastPluginMessage))
+                    {
                         LastPluginMessage = ex.Message;
                     }
                 }
                 bool failed = false;
-                if (vis2d == null && visWire == null) {
+                if (vis2d == null && visWire == null)
+                {
                     failed = true;
-                } else if (vis2d != null) {
+                }
+                else if (vis2d != null)
+                {
                     previewGrid.Background = null;
                     previewImage.Source = Visualization.ConvertToBitmapSource(vis2d);
                     wireframePath.Data = new GeometryGroup();
@@ -620,9 +737,12 @@ namespace SourceGen.WpfGui {
                         previewImage.Source.Width, previewImage.Source.Height);
 
                     mThumbnail = (BitmapSource)previewImage.Source;
-                } else {
+                }
+                else
+                {
                     WireframeObject wireObj = WireframeObject.Create(visWire);
-                    if (wireObj != null) {
+                    if (wireObj != null)
+                    {
                         previewGrid.Background = Brushes.Black;
                         previewImage.Source = Visualization.BLANK_IMAGE;
                         double dim = Math.Floor(
@@ -632,16 +752,22 @@ namespace SourceGen.WpfGui {
                         BitmapDimensions = "n/a";
 
                         mWireObj = wireObj;
-                    } else {
+                    }
+                    else
+                    {
                         failed = true;
                     }
                 }
-                if (failed) {
+                if (failed)
+                {
                     previewImage.Source = sBadParamsImage;
-                    if (!string.IsNullOrEmpty(LastPluginMessage)) {
+                    if (!string.IsNullOrEmpty(LastPluginMessage))
+                    {
                         // Report the last message we got as an error.
                         PluginErrMessage = LastPluginMessage;
-                    } else {
+                    }
+                    else
+                    {
                         // Generic failure message.
                         PluginErrMessage = (string)FindResource("str_VisGenFailed");
                     }
@@ -652,22 +778,28 @@ namespace SourceGen.WpfGui {
             string trimTag = Visualization.TrimAndValidateTag(TagString, out bool tagOk);
             Visualization match =
                 EditVisualizationSet.FindVisualizationByTag(mEditedList, trimTag);
-            if (match != null && (mOrigVis == null || trimTag != mOrigVis.Tag)) {
+            if (match != null && (mOrigVis == null || trimTag != mOrigVis.Tag))
+            {
                 // Another vis already has this tag.  We're checking the edited list, so we'll
                 // be current with edits to this or other Visualizations in the same set.
                 tagOk = false;
             }
-            if (!tagOk) {
+            if (!tagOk)
+            {
                 TagLabelBrush = mErrorLabelColor;
                 IsValid = false;
-            } else {
+            }
+            else
+            {
                 TagLabelBrush = mDefaultLabelColor;
             }
         }
 
-        private void VisComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+        private void VisComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
             VisualizationItem item = (VisualizationItem)visComboBox.SelectedItem;
-            if (item == null) {
+            if (item == null)
+            {
                 Debug.Assert(false);    // not expected
                 return;
             }
@@ -675,7 +807,8 @@ namespace SourceGen.WpfGui {
             GenerateParamControls(item.VisDescriptor);
 
             // Configure the viewer controls from the visualization, or from the previous edit.
-            if (mOrigVis != null) {
+            if (mOrigVis != null)
+            {
                 initialXSlider.Value = Util.GetFromObjDict(mOrigVis.VisGenParams,
                     VisWireframeAnimation.P_EULER_ROT_X, 0);
                 initialYSlider.Value = Util.GetFromObjDict(mOrigVis.VisGenParams,
@@ -702,7 +835,9 @@ namespace SourceGen.WpfGui {
                     VisWireframeAnimation.P_FRAME_COUNT, 1);
                 FrameDelayMsec = Util.GetFromObjDict(mOrigVis.VisGenParams,
                     VisWireframeAnimation.P_FRAME_DELAY_MSEC, 100);
-            } else {
+            }
+            else
+            {
                 initialXSlider.Value = GetLastValue(VisWireframeAnimation.P_EULER_ROT_X, 0);
                 initialYSlider.Value = GetLastValue(VisWireframeAnimation.P_EULER_ROT_Y, 0);
                 initialZSlider.Value = GetLastValue(VisWireframeAnimation.P_EULER_ROT_Z, 0);
@@ -725,22 +860,28 @@ namespace SourceGen.WpfGui {
         /// <param name="defVal">Default value.</param>
         /// <returns>Parameter value, or if the parameter isn't found or has the wrong type,
         ///   the default value.</returns>
-        private T GetLastValue<T>(string name, T defVal) {
-            if (sLastParams.TryGetValue(name, out object val) && val is T) {
+        private T GetLastValue<T>(string name, T defVal)
+        {
+            if (sLastParams.TryGetValue(name, out object val) && val is T)
+            {
                 return (T)val;
-            } else {
+            }
+            else
+            {
                 return defVal;
             }
         }
 
-        private void TextBox_TextChanged(object sender, TextChangedEventArgs e) {
+        private void TextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
             TextBox src = (TextBox)sender;
             ParameterValue pv = (ParameterValue)src.DataContext;
             //Debug.WriteLine("TEXT CHANGE " + pv + ": " + src.Text);
             UpdateControls();
         }
 
-        private void CheckBox_Changed(object sender, RoutedEventArgs e) {
+        private void CheckBox_Changed(object sender, RoutedEventArgs e)
+        {
             CheckBox src = (CheckBox)sender;
             ParameterValue pv = (ParameterValue)src.DataContext;
             //Debug.WriteLine("CHECK CHANGE" + pv);
@@ -748,11 +889,13 @@ namespace SourceGen.WpfGui {
         }
 
         private void InitialRotSlider_ValueChanged(object sender,
-                RoutedPropertyChangedEventArgs<double> e) {
+                RoutedPropertyChangedEventArgs<double> e)
+        {
             UpdateControls();
         }
 
-        private void TestAnim_Click(object sender, RoutedEventArgs e) {
+        private void TestAnim_Click(object sender, RoutedEventArgs e)
+        {
             ShowWireframeAnimation dlg = new ShowWireframeAnimation(this, mWireObj,
                 CreateVisGenParams(true));
             dlg.ShowDialog();
@@ -766,20 +909,23 @@ namespace SourceGen.WpfGui {
         /// <remarks>
         /// There might be a clever way to do this with math, but this is pretty simple.
         /// </remarks>
-        private void AutoFrameCountButton_Click(object sender, RoutedEventArgs e) {
+        private void AutoFrameCountButton_Click(object sender, RoutedEventArgs e)
+        {
             int xr, yr, zr;
             int xstart = xr = (int)initialXSlider.Value;
             int ystart = yr = (int)initialYSlider.Value;
             int zstart = zr = (int)initialZSlider.Value;
 
             int count = 0;
-            while (count < 360) {
+            while (count < 360)
+            {
                 xr = (xr + 360 + RotDeltaX) % 360;
                 yr = (yr + 360 + RotDeltaY) % 360;
                 zr = (zr + 360 + RotDeltaZ) % 360;
                 count++;
 
-                if (xr == xstart && yr == ystart && zr == zstart) {
+                if (xr == xstart && yr == ystart && zr == zstart)
+                {
                     break;
                 }
             }
@@ -796,30 +942,35 @@ namespace SourceGen.WpfGui {
     /// to fire an event back to the window class when things change.  I don't know that there's
     /// an advantage to doing so.
     /// </remarks>
-    public class ParameterValue : INotifyPropertyChanged {
+    public class ParameterValue : INotifyPropertyChanged
+    {
         public VisParamDescr Descr { get; private set; }
         public string UiString { get; private set; }
         public string RangeText { get; private set; }
 
         private object mValue;
-        public object Value {
+        public object Value
+        {
             get { return mValue; }
             set { mValue = value; OnPropertyChanged(); }
         }
 
         private Brush mForegroundBrush;
-        public Brush ForegroundBrush {
+        public Brush ForegroundBrush
+        {
             get { return mForegroundBrush; }
             set { mForegroundBrush = value; OnPropertyChanged(); }
         }
 
         // INotifyPropertyChanged implementation
         public event PropertyChangedEventHandler PropertyChanged;
-        private void OnPropertyChanged([CallerMemberName] string propertyName = "") {
+        private void OnPropertyChanged([CallerMemberName] string propertyName = "")
+        {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public ParameterValue(VisParamDescr vpd, object val, string rangeText) {
+        public ParameterValue(VisParamDescr vpd, object val, string rangeText)
+        {
             Descr = vpd;
             Value = val;
             RangeText = rangeText;
@@ -828,38 +979,52 @@ namespace SourceGen.WpfGui {
             UiString = vpd.UiLabel + labelSuffix;
         }
 
-        public override string ToString() {
+        public override string ToString()
+        {
             return "[PV: " + Descr.Name + "=" + Value + "]";
         }
     }
 
-    public class ParameterTemplateSelector : DataTemplateSelector {
+    public class ParameterTemplateSelector : DataTemplateSelector
+    {
         private DataTemplate mBoolTemplate;
-        public DataTemplate BoolTemplate {
+        public DataTemplate BoolTemplate
+        {
             get { return mBoolTemplate; }
             set { mBoolTemplate = value; }
         }
         private DataTemplate mIntTemplate;
-        public DataTemplate IntTemplate {
+        public DataTemplate IntTemplate
+        {
             get { return mIntTemplate; }
             set { mIntTemplate = value; }
         }
         private DataTemplate mFloatTemplate;
-        public DataTemplate FloatTemplate {
+        public DataTemplate FloatTemplate
+        {
             get { return mFloatTemplate; }
             set { mFloatTemplate = value; }
         }
 
-        public override DataTemplate SelectTemplate(object item, DependencyObject container) {
-            if (item is ParameterValue) {
+        public override DataTemplate SelectTemplate(object item, DependencyObject container)
+        {
+            if (item is ParameterValue)
+            {
                 ParameterValue parm = (ParameterValue)item;
-                if (parm.Descr.CsType == typeof(bool)) {
+                if (parm.Descr.CsType == typeof(bool))
+                {
                     return BoolTemplate;
-                } else if (parm.Descr.CsType == typeof(int)) {
+                }
+                else if (parm.Descr.CsType == typeof(int))
+                {
                     return IntTemplate;
-                } else if (parm.Descr.CsType == typeof(float)) {
+                }
+                else if (parm.Descr.CsType == typeof(float))
+                {
                     return FloatTemplate;
-                } else {
+                }
+                else
+                {
                     Debug.WriteLine("WHA?" + parm.Value.GetType());
                 }
             }

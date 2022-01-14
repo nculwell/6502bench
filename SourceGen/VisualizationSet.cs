@@ -21,14 +21,16 @@ using System.Diagnostics;
 
 using PluginCommon;
 
-namespace SourceGen {
+namespace SourceGen
+{
     /// <summary>
     /// Ordered list of visualization objects.
     /// </summary>
     /// <remarks>
     /// There's not much separating this from a plain List<>, except perhaps the operator== stuff.
     /// </remarks>
-    public class VisualizationSet : IEnumerable<Visualization> {
+    public class VisualizationSet : IEnumerable<Visualization>
+    {
         /// <summary>
         /// Object list.
         /// </summary>
@@ -39,24 +41,28 @@ namespace SourceGen {
         /// Constructor.
         /// </summary>
         /// <param name="initialCap">Initial capacity.</param>
-        public VisualizationSet(int initialCap = 1) {
+        public VisualizationSet(int initialCap = 1)
+        {
             mList = new List<Visualization>(initialCap);
         }
 
         // IEnumerable
-        public IEnumerator<Visualization> GetEnumerator() {
+        public IEnumerator<Visualization> GetEnumerator()
+        {
             return mList.GetEnumerator();
         }
 
         // IEnumerable
-        IEnumerator IEnumerable.GetEnumerator() {
+        IEnumerator IEnumerable.GetEnumerator()
+        {
             return mList.GetEnumerator();
         }
 
         /// <summary>
         /// The number of entries in the table.
         /// </summary>
-        public int Count {
+        public int Count
+        {
             get { return mList.Count; }
         }
 
@@ -64,23 +70,29 @@ namespace SourceGen {
         /// Accesses the Nth element.
         /// </summary>
         /// <param name="key">Element number.</param>
-        public Visualization this[int key] {
-            get {
+        public Visualization this[int key]
+        {
+            get
+            {
                 return mList[key];
             }
         }
 
-        public void Add(Visualization vis) {
+        public void Add(Visualization vis)
+        {
             mList.Add(vis);
         }
 
-        public void Remove(Visualization vis) {
+        public void Remove(Visualization vis)
+        {
             mList.Remove(vis);
         }
 
-        public Visualization[] ToArray() {
+        public Visualization[] ToArray()
+        {
             Visualization[] arr = new Visualization[mList.Count];
-            for (int i = 0; i < mList.Count; i++) {
+            for (int i = 0; i < mList.Count; i++)
+            {
                 arr[i] = mList[i];
             }
             return arr;
@@ -93,11 +105,15 @@ namespace SourceGen {
         /// <param name="serial">Serial number to search for.</param>
         /// <returns>Matching Visualization, or null if not found.</returns>
         public static Visualization FindVisualizationBySerial(
-                SortedList<int, VisualizationSet> visSets, int serial) {
-            foreach (KeyValuePair<int, VisualizationSet> kvp in visSets) {
+                SortedList<int, VisualizationSet> visSets, int serial)
+        {
+            foreach (KeyValuePair<int, VisualizationSet> kvp in visSets)
+            {
                 VisualizationSet visSet = kvp.Value;
-                foreach (Visualization vis in visSet) {
-                    if (vis.SerialNumber == serial) {
+                foreach (Visualization vis in visSet)
+                {
+                    if (vis.SerialNumber == serial)
+                    {
                         return vis;
                     }
                 }
@@ -114,21 +130,28 @@ namespace SourceGen {
         /// <param name="newSet">Updated set.</param>
         /// <returns>True if entries were removed.</returns>
         public static bool StripEntriesFromAnimations(VisualizationSet visSet,
-                List<int> removedSerials, out VisualizationSet newSet) {
+                List<int> removedSerials, out VisualizationSet newSet)
+        {
             bool somethingRemoved = false;
             newSet = new VisualizationSet(visSet.Count);
-            foreach (Visualization vis in visSet) {
-                if (!(vis is VisBitmapAnimation)) {
+            foreach (Visualization vis in visSet)
+            {
+                if (!(vis is VisBitmapAnimation))
+                {
                     newSet.Add(vis);
                     continue;
                 }
 
-                if (VisBitmapAnimation.StripEntries((VisBitmapAnimation) vis,
-                        removedSerials, out VisBitmapAnimation newAnim)) {
+                if (VisBitmapAnimation.StripEntries((VisBitmapAnimation)vis,
+                        removedSerials, out VisBitmapAnimation newAnim))
+                {
                     somethingRemoved = true;
-                    if (newAnim.Count != 0) {
+                    if (newAnim.Count != 0)
+                    {
                         newSet.Add(newAnim);
-                    } else {
+                    }
+                    else
+                    {
                         Debug.WriteLine("Deleting empty animation " + vis.Tag);
                     }
                 }
@@ -138,24 +161,29 @@ namespace SourceGen {
 
         #region Image generation
 
-        private class ScriptSupport : MarshalByRefObject, PluginCommon.IApplication {
+        private class ScriptSupport : MarshalByRefObject, PluginCommon.IApplication
+        {
             public string MsgTag { get; set; } = string.Empty;
 
             public ScriptSupport() { }
 
-            public void ReportError(string msg) {
+            public void ReportError(string msg)
+            {
                 DebugLog(msg);
             }
 
-            public void DebugLog(string msg) {
+            public void DebugLog(string msg)
+            {
                 Debug.WriteLine("Vis [" + MsgTag + "]: " + msg);
             }
 
-            public bool SetOperandFormat(int offset, DataSubType subType, string label) {
+            public bool SetOperandFormat(int offset, DataSubType subType, string label)
+            {
                 throw new InvalidOperationException();
             }
             public bool SetInlineDataFormat(int offset, int length, DataType type,
-                    DataSubType subType, string label) {
+                    DataSubType subType, string label)
+            {
                 throw new InvalidOperationException();
             }
         }
@@ -164,8 +192,10 @@ namespace SourceGen {
         /// Informs all list elements that a refresh is needed.  Call this when the set of active
         /// plugins changes.  The actual refresh will happen later.
         /// </summary>
-        public void RefreshNeeded() {
-            foreach (Visualization vis in mList) {
+        public void RefreshNeeded()
+        {
+            foreach (Visualization vis in mList)
+            {
                 vis.SetThumbnail(null);
                 vis.SetThumbnail(null, null);
             }
@@ -175,37 +205,45 @@ namespace SourceGen {
         /// Attempts to refresh broken thumbnails across all visualization sets in the project.
         /// </summary>
         /// <param name="project">Project reference.</param>
-        public static void RefreshAllThumbnails(DisasmProject project) {
+        public static void RefreshAllThumbnails(DisasmProject project)
+        {
             ScriptSupport iapp = null;
-            Dictionary<string, IPlugin> plugins = null;
+            IReadOnlyDictionary<string, IPlugin>? plugins = null;
 
             SortedList<int, VisualizationSet> visSets = project.VisualizationSets;
 
-            foreach (KeyValuePair<int, VisualizationSet> kvp in visSets) {
+            foreach (KeyValuePair<int, VisualizationSet> kvp in visSets)
+            {
                 VisualizationSet visSet = kvp.Value;
-                foreach (Visualization vis in visSet) {
-                    if (vis.HasImage) {
+                foreach (Visualization vis in visSet)
+                {
+                    if (vis.HasImage)
+                    {
                         continue;
                     }
                     //Debug.WriteLine("Vis needs refresh: " + vis.Tag);
 
-                    if (vis is VisBitmapAnimation) {
+                    if (vis is VisBitmapAnimation)
+                    {
                         continue;
                     }
 
-                    if (iapp == null) {
+                    if (iapp == null)
+                    {
                         // Prep the plugins on first need.
                         iapp = new ScriptSupport();
                         project.PrepareScripts(iapp);
                     }
                     iapp.MsgTag = vis.Tag;
 
-                    if (plugins == null) {
+                    if (plugins == null)
+                    {
                         plugins = project.GetActivePlugins();
                     }
                     IPlugin_Visualizer vplug = FindPluginByVisGenIdent(plugins,
                         vis.VisGenIdent, out VisDescr visDescr);
-                    if (vplug == null) {
+                    if (vplug == null)
+                    {
                         Debug.WriteLine("Unable to refresh " + vis.Tag + ": plugin not found");
                         continue;
                     }
@@ -214,43 +252,60 @@ namespace SourceGen {
                     IVisualizationWireframe visWire = null;
                     ReadOnlyDictionary<string, object> parms =
                         new ReadOnlyDictionary<string, object>(vis.VisGenParams);
-                    try {
-                        if (visDescr.VisualizationType == VisDescr.VisType.Bitmap) {
+                    try
+                    {
+                        if (visDescr.VisualizationType == VisDescr.VisType.Bitmap)
+                        {
                             vis2d = vplug.Generate2d(visDescr, parms);
-                            if (vis2d == null) {
+                            if (vis2d == null)
+                            {
                                 Debug.WriteLine("Vis2d generator returned null");
                             }
-                        } else if (visDescr.VisualizationType == VisDescr.VisType.Wireframe) {
+                        }
+                        else if (visDescr.VisualizationType == VisDescr.VisType.Wireframe)
+                        {
                             IPlugin_Visualizer_v2 plugin2 = (IPlugin_Visualizer_v2)vplug;
                             visWire = plugin2.GenerateWireframe(visDescr, parms);
-                            if (visWire == null) {
+                            if (visWire == null)
+                            {
                                 Debug.WriteLine("VisWire generator returned null");
                             }
-                        } else {
+                        }
+                        else
+                        {
                             Debug.Assert(false);
                         }
-                    } catch (Exception ex) {
+                    }
+                    catch (Exception ex)
+                    {
                         Debug.WriteLine("Vis generation failed: " + ex);
                     }
-                    if (vis2d != null) {
+                    if (vis2d != null)
+                    {
                         //Debug.WriteLine(" Rendered thumbnail: " + vis.Tag);
                         vis.SetThumbnail(vis2d);
-                    } else if (visWire != null) {
+                    }
+                    else if (visWire != null)
+                    {
                         vis.SetThumbnail(visWire, parms);
                     }
                 }
             }
 
-            if (iapp != null) {
+            if (iapp != null)
+            {
                 project.UnprepareScripts();
             }
 
             // Now that we've generated images for the Visualizations, update any
             // VisBitmapAnimation thumbnails that may have been affected.
-            foreach (KeyValuePair<int, VisualizationSet> kvp in visSets) {
+            foreach (KeyValuePair<int, VisualizationSet> kvp in visSets)
+            {
                 VisualizationSet visSet = kvp.Value;
-                foreach (Visualization vis in visSet) {
-                    if (!(vis is VisBitmapAnimation)) {
+                foreach (Visualization vis in visSet)
+                {
+                    if (!(vis is VisBitmapAnimation))
+                    {
                         continue;
                     }
                     VisBitmapAnimation visAnim = (VisBitmapAnimation)vis;
@@ -266,14 +321,19 @@ namespace SourceGen {
         /// <param name="visGenIdent">Visualization generator identifier.</param>
         /// <returns>A plugin that matches, or null if none found.</returns>
         private static IPlugin_Visualizer FindPluginByVisGenIdent(
-                Dictionary<string, IPlugin> plugins, string visGenIdent, out VisDescr visDescr) {
-            foreach (IPlugin chkPlug in plugins.Values) {
-                if (!(chkPlug is IPlugin_Visualizer)) {
+                IReadOnlyDictionary<string, IPlugin> plugins, string visGenIdent, out VisDescr visDescr)
+        {
+            foreach (IPlugin chkPlug in plugins.Values)
+            {
+                if (!(chkPlug is IPlugin_Visualizer))
+                {
                     continue;
                 }
                 IPlugin_Visualizer vplug = (IPlugin_Visualizer)chkPlug;
-                foreach (VisDescr descr in vplug.GetVisGenDescrs()) {
-                    if (descr.Ident == visGenIdent) {
+                foreach (VisDescr descr in vplug.GetVisGenDescrs())
+                {
+                    if (descr.Ident == visGenIdent)
+                    {
                         visDescr = descr;
                         return vplug;
                     }
@@ -286,38 +346,49 @@ namespace SourceGen {
         #endregion Image generation
 
 
-        public override string ToString() {
+        public override string ToString()
+        {
             return "[VS: " + mList.Count + " items]";
         }
 
-        public static bool operator ==(VisualizationSet a, VisualizationSet b) {
-            if (ReferenceEquals(a, b)) {
+        public static bool operator ==(VisualizationSet a, VisualizationSet b)
+        {
+            if (ReferenceEquals(a, b))
+            {
                 return true;    // same object, or both null
             }
-            if (ReferenceEquals(a, null) || ReferenceEquals(b, null)) {
+            if (ReferenceEquals(a, null) || ReferenceEquals(b, null))
+            {
                 return false;   // one is null
             }
             // All fields must be equal.
-            if (a.mList.Count != b.mList.Count) {
+            if (a.mList.Count != b.mList.Count)
+            {
                 return false;
             }
             // Order matters.  Use Equals() rather than == to get polymorphism.
-            for (int i = 0; i < a.mList.Count; i++) {
-                if (!a.mList[i].Equals(b.mList[i])) {
+            for (int i = 0; i < a.mList.Count; i++)
+            {
+                if (!a.mList[i].Equals(b.mList[i]))
+                {
                     return false;
                 }
             }
             return true;
         }
-        public static bool operator !=(VisualizationSet a, VisualizationSet b) {
+        public static bool operator !=(VisualizationSet a, VisualizationSet b)
+        {
             return !(a == b);
         }
-        public override bool Equals(object obj) {
+        public override bool Equals(object obj)
+        {
             return obj is VisualizationSet && this == (VisualizationSet)obj;
         }
-        public override int GetHashCode() {
+        public override int GetHashCode()
+        {
             int hashCode = 0;
-            foreach (Visualization vis in mList) {
+            foreach (Visualization vis in mList)
+            {
                 hashCode ^= vis.GetHashCode();
             }
             return hashCode;

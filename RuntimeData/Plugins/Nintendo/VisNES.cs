@@ -60,7 +60,7 @@ namespace RuntimeData.Nintendo {
         private const int BytesPerTile = 16;
 
         // Visualization descriptors.
-        private VisDescr[] mDescriptors = new VisDescr[] {
+        private readonly VisDescr[] mDescriptors = new VisDescr[] {
             new VisDescr(VIS_CHR_ROM, "NES CHR ROM Pattern Tables", VisDescr.VisType.Bitmap,
                 new VisParamDescr[] {
                     //new VisParamDescr("File offset (hex)",
@@ -220,7 +220,7 @@ namespace RuntimeData.Nintendo {
                 return null;
             }
 
-            VisBitmap8 vb = new VisBitmap8(TileWidth * width, TileHeight * height);
+            var vb = new VisBitmap8(TileWidth * width, TileHeight * height);
             SetPalette(vb, (Palette)paletteNum);
 
             for (int row = 0; row < height; row++) {
