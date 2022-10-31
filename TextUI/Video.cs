@@ -10,9 +10,9 @@ public class Video : IDisposable
 
     private bool disposedValue = false;
 
-    private IntPtr _window;
-    private IntPtr _renderer;
-    private IntPtr _font;
+    private IntPtr _window = IntPtr.Zero;
+    private IntPtr _renderer = IntPtr.Zero;
+    private IntPtr _font = IntPtr.Zero;
 
     // Single character dimensions in terms of pixels.
     private Size _charSizePx;
@@ -26,7 +26,7 @@ public class Video : IDisposable
     // Keep track of all loaded textures so they can be destroyed.
     private IList<IntPtr> _textures = new List<IntPtr>();
     // Texture containing font glyphs rendered in grid with transparent background.
-    private IntPtr _fontTexture;
+    private IntPtr _fontTexture = IntPtr.Zero;
     private Size _glyphTextureDimCh;
 
     public Video()
@@ -121,6 +121,8 @@ public class Video : IDisposable
                 x += _charSizePx.W;
             }
         }
+        if (_fontTexture == IntPtr.Zero)
+            SDL_DestroyTexture(_fontTexture);
         _fontTexture = SDL_CreateTextureFromSurface(_renderer, surface);
     }
 
@@ -166,23 +168,7 @@ public class Video : IDisposable
         {
             SDL_DestroyTexture(texture);
         }
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposedValue)
-        {
-            if (disposing)
-            {
-                // TODO: dispose managed state (managed objects)
-            }
-
-            // free unmanaged resources (unmanaged objects) and override finalizer
-            DestroyTextures();
-            DestroyWindow();
-            // set large fields to null
-            disposedValue = true;
-        }
+        SDL_DestroyTexture(_fontTexture);
     }
 
     public void DrawFrame(Action drawingCode)
@@ -233,13 +219,29 @@ public class Video : IDisposable
         SDL_RenderCopy(_renderer, _fontTexture, ref src, ref dst);
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposedValue)
+        {
+            if (disposing)
+            {
+                // TODO: dispose managed state (managed objects)
+            }
+            // free unmanaged resources (unmanaged objects) and override finalizer
+            DestroyTextures();
+            DestroyWindow();
+            // set large fields to null
+            disposedValue = true;
+        }
+    }
+
     ~Video()
     {
         // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
         Dispose(disposing: false);
     }
 
-    void IDisposable.Dispose()
+    public void Dispose()
     {
         // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
         Dispose(disposing: true);
