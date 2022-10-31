@@ -83,10 +83,14 @@ public class Main
 
     private void Update()
     {
+        for (int y = 0; y < _display.GetLength(0); y++)
+            for (int x = 0; x < _display.GetLength(0); x++)
+                _display[y, x] = '.';
     }
 
     private void Draw()
     {
+        _video.DrawFrame(_display);
     }
 
 }

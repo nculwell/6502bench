@@ -14,13 +14,20 @@ public class Video : IDisposable
     private IntPtr _renderer;
     private IntPtr _font;
 
+    // Single character dimensions in terms of pixels.
     private Size _charSizePx;
+    // Window dimensions in terms of pixels.
     private Size _windowSizePx;
+    // Text display dimensions in terms of character count.
     private Size _textDimCh;
+    // Offset from window origin to text display origin, in pixels.
     private Size _textOffsetPx;
 
     // Keep track of all loaded textures so they can be destroyed.
     private IList<IntPtr> _textures = new List<IntPtr>();
+    // Texture containing font glyphs rendered in grid with transparent background.
+    private IntPtr _fontTexture;
+    private Size _glyphTextureDimCh;
 
     public Video()
     {
@@ -66,9 +73,60 @@ public class Video : IDisposable
     {
         if (0 != TTF_Init())
             throw new SdlTtfException("TTF_Init");
-        _font = TTF_OpenFont(FontPath, 8);
+        SetFontSize(8);
+    }
+
+    private void SetFontSize(int pointSize)
+    {
+        _font = TTF_OpenFont(FontPath, pointSize);
         if (_font == IntPtr.Zero)
-            throw new SdlTtfException("TTF_OpenFont");
+            throw new SdlTtfException($"TTF_OpenFont couldn't open font '{FontPath}':{pointSize}");
+        CalculateTextDimensions();
+        RenderFontGlyphsToTexture();
+    }
+
+    private void RenderFontGlyphsToTexture()
+    {
+        var foreground = new SDL_Color() { r = 255, g = 255, b = 255, a = 255 };
+        int glyphMax = 255;
+        int glyphCount = glyphMax + 1 - 32;
+        int textureW = 512;
+        int textureH = 16;
+        int textCols = textureW / _charSizePx.W;
+        int textRows = glyphCount / textCols;
+        if (glyphCount % textCols > 0)
+            textRows++;
+        _glyphTextureDimCh = new Size(textCols, textRows);
+        int textHeightPx = textRows * _charSizePx.H;
+        while (textureH < textHeightPx)
+            textureH *= 2;
+        var surface = CreateSurface(textureW, textureH);
+        int x = 0;
+        int y = 0;
+        SDL_Rect srcRect = new SDL_Rect() { x = 0, y = 0, w = _charSizePx.W, h = _charSizePx.H };
+        SDL_Rect dstRect = new SDL_Rect() { x = 0, y = 0, w = _charSizePx.W, h = _charSizePx.H };
+        for (ushort i = 32; i < glyphMax; i++)
+        {
+            var glyph = TTF_RenderGlyph_Blended(_font, i, foreground);
+            dstRect.x = x;
+            dstRect.y = y;
+            SDL_BlitSurface(glyph, ref srcRect, surface, ref dstRect);
+            if ((i - 32) % textCols == textCols - 1)
+            {
+                x = 0;
+                y += _charSizePx.H;
+            }
+            else
+            {
+                x += _charSizePx.W;
+            }
+        }
+        _fontTexture = SDL_CreateTextureFromSurface(_renderer, surface);
+    }
+
+    IntPtr CreateSurface(int w, int h)
+    {
+        return SDL_CreateRGBSurface(0, w, h, 32, 0, 0, 0, 0);
     }
 
     private void InitSdl(string windowTitle, int windowWidth, int windowHeight)
@@ -133,6 +191,46 @@ public class Video : IDisposable
         SDL_RenderClear(_renderer);
         drawingCode();
         SDL_RenderPresent(_renderer);
+    }
+
+    public void DrawFrame(char[,] display)
+    {
+        var white = new SDL_Color() { r = 255, g = 255, b = 255, a = 255 };
+        SDL_SetRenderDrawColor(_renderer, 0, 0, 0, 255);
+        SDL_RenderClear(_renderer);
+        int y = _textOffsetPx.H;
+        for (int row = 0; row < display.GetLength(0); row++)
+        {
+            int x = _textOffsetPx.W;
+            for (int col = 0; col < display.GetLength(1); col++)
+            {
+                char c = display[row, col];
+                RenderGlyph(c, x, y);
+                x += _charSizePx.W;
+            }
+            y += _charSizePx.H;
+        }
+        SDL_RenderPresent(_renderer);
+    }
+
+    private void RenderGlyph(char c, int x, int y)
+    {
+        ushort cc = c;
+        var src = new SDL_Rect()
+        {
+            x = cc % _glyphTextureDimCh.W,
+            y = cc / _glyphTextureDimCh.H,
+            w = _charSizePx.W,
+            h = _charSizePx.H,
+        };
+        var dst = new SDL_Rect()
+        {
+            x = x,
+            y = y,
+            w = _charSizePx.W,
+            h = _charSizePx.H,
+        };
+        SDL_RenderCopy(_renderer, _fontTexture, ref src, ref dst);
     }
 
     ~Video()
