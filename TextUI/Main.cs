@@ -5,8 +5,6 @@ using static SDL2.SDL.SDL_LogCategory;
 public class Main
 {
 
-    const int EventTimeoutMs = 100;
-
     private readonly Video _video;
     private readonly EventHandler _eventHandler;
 
