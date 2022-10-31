@@ -33,7 +33,7 @@ public class Video : IDisposable
     {
     }
 
-    public Size TextDimensions { get; private set; }
+    public Size TextDimensions => _textDimCh;
 
     public void Init(string windowTitle, int windowWidth, int windowHeight)
     {
@@ -137,15 +137,19 @@ public class Video : IDisposable
         uint flags = SDL_INIT_VIDEO | SDL_INIT_TIMER;
         if (0 != SDL_Init(flags))
             throw new SdlException("SDL_Init");
-        InitWindow(windowTitle, windowWidth, windowHeight);
+        InitWindow(windowTitle, windowWidth, windowHeight, false);
     }
 
-    private void InitWindow(string windowTitle, int windowWidth, int windowHeight)
+    private void InitWindow(string windowTitle, int windowWidth, int windowHeight, bool fullscreen)
     {
+        SDL_WindowFlags windowFlags = SDL_WindowFlags.SDL_WINDOW_SHOWN;
+        if (fullscreen)
+            windowFlags |= SDL_WindowFlags.SDL_WINDOW_FULLSCREEN_DESKTOP;
+        else
+            windowFlags |= SDL_WindowFlags.SDL_WINDOW_RESIZABLE;
         _window = SDL_CreateWindow(windowTitle,
             SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-            windowWidth, windowHeight,
-            SDL_WindowFlags.SDL_WINDOW_SHOWN);
+            windowWidth, windowHeight, windowFlags);
         if (_window == IntPtr.Zero)
             throw new SdlException("SDL_CreateWindow");
         var screen = SDL_GetWindowSurface(_window);

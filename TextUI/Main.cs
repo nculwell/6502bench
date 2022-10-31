@@ -8,13 +8,14 @@ public class Main
     const int EventTimeoutMs = 100;
 
     private readonly Video _video;
-    private bool _quitting = false;
+    private readonly EventHandler _eventHandler;
 
     private char[,] _display = new char[0, 0];
 
-    public Main(Video video)
+    public Main(Video video, EventHandler eventHandler)
     {
         _video = video;
+        _eventHandler = eventHandler;
     }
 
     public void Run()
@@ -22,7 +23,7 @@ public class Main
         try
         {
             // Read config
-            SDL_LogSetOutputFunction(LogCallback, IntPtr.Zero);
+            // SDL_LogSetOutputFunction(LogCallback, IntPtr.Zero);
             SDL_LogSetPriority((int)SDL_LOG_CATEGORY_APPLICATION, SDL_LogPriority.SDL_LOG_PRIORITY_VERBOSE);
             // Init SDL
             _video.Init("SGText", 800, 600);
@@ -70,57 +71,18 @@ public class Main
     {
         var dim = _video.TextDimensions;
         _display = new char[dim.H, dim.W];
+        SDL_Log($"Display dimensions: {_display.GetLength(1)} x {_display.GetLength(0)}");
     }
 
     private void MainLoop()
     {
         uint startTime = SDL_GetTicks();
-        while (!_quitting)
+        while (!_eventHandler.Quitting)
         {
             uint frameStartTime = SDL_GetTicks();
-            ReadInput(); // this waits for an event
+            HandleEvents(); // this waits for an event
             Update();
             Draw();
-        }
-    }
-
-    private void LogEvent(string eventInfo)
-        => SDL_LogDebug((int)SDL_LOG_CATEGORY_APPLICATION, "Event: " + eventInfo);
-
-    private void ReadInput()
-    {
-        while (true)
-        {
-            int result = SDL_WaitEventTimeout(out SDL_Event evt, EventTimeoutMs);
-            if (result == 0)
-                return;
-            switch (evt.type)
-            {
-                case SDL_EventType.SDL_WINDOWEVENT:
-                    LogEvent($"WindowEvent");
-                    break;
-                case SDL_EventType.SDL_MOUSEBUTTONDOWN:
-                case SDL_EventType.SDL_MOUSEBUTTONUP:
-                    LogEvent($"MouseButton");
-                    break;
-                case SDL_EventType.SDL_MOUSEWHEEL:
-                    LogEvent($"MouseWheel");
-                    break;
-                case SDL_EventType.SDL_KEYDOWN:
-                case SDL_EventType.SDL_KEYUP:
-                    {
-                        var k = evt.key.keysym.sym;
-                        LogEvent($"Key: " + k);
-                        if (k == SDL_Keycode.SDLK_q)
-                            _quitting = true;
-                    }
-                    break;
-                case SDL_EventType.SDL_QUIT:
-                    LogEvent($"Quit");
-                    // TODO: Confirm
-                    _quitting = true;
-                    break;
-            }
         }
     }
 

@@ -5,6 +5,7 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         services.AddSingleton<Main>();
         services.AddSingleton<Video>();
+        services.AddSingleton<EventHandler>();
     })
     .Build();
 
