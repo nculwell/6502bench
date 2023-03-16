@@ -2,18 +2,20 @@ using SDL2;
 using static SDL2.SDL;
 using static SDL2.SDL.SDL_LogCategory;
 
-public class Main
+public class Main : IEventReceiver
 {
 
     private readonly Video _video;
     private readonly EventHandler _eventHandler;
 
     private char[,] _display = new char[0, 0];
+    private bool _quitting = false;
 
     public Main(Video video, EventHandler eventHandler)
     {
         _video = video;
         _eventHandler = eventHandler;
+        RegisterEvents();
     }
 
     public void Run()
@@ -67,6 +69,7 @@ public class Main
 
     void ResizeWindow()
     {
+        _video.CalculateWindowSize();
         var dim = _video.TextDimensions;
         _display = new char[dim.H, dim.W];
         SDL_Log($"Display dimensions: {_display.GetLength(1)} x {_display.GetLength(0)}");
@@ -75,10 +78,10 @@ public class Main
     private void MainLoop()
     {
         uint startTime = SDL_GetTicks();
-        while (!_eventHandler.Quitting)
+        while (!_quitting)
         {
             uint frameStartTime = SDL_GetTicks();
-            HandleEvents(); // this waits for an event
+            _eventHandler.HandleEvents(); // this waits for an event
             Update();
             Draw();
         }
@@ -87,13 +90,36 @@ public class Main
     private void Update()
     {
         for (int y = 0; y < _display.GetLength(0); y++)
-            for (int x = 0; x < _display.GetLength(0); x++)
-                _display[y, x] = '.';
+            for (int x = 0; x < _display.GetLength(1); x++)
+                _display[y, x] = 'a';
     }
 
     private void Draw()
     {
         _video.DrawFrame(_display);
+    }
+
+    private void RegisterEvents()
+    {
+        _eventHandler.RegisterEventReceiver(this, new[] {
+             EvtType.EVT_QUIT_REQUESTED, EvtType.EVT_QUIT_CONFIRMED, EvtType.EVT_WINDOW_RESIZED,
+        });
+    }
+
+    public void ReceiveEvent(Evt e)
+    {
+        switch (e.Type)
+        {
+            case EvtType.EVT_QUIT_REQUESTED:
+                _eventHandler.RaiseEvent(new Evt(EvtType.EVT_QUIT_CONFIRMED));
+                break;
+            case EvtType.EVT_QUIT_CONFIRMED:
+                _quitting = true;
+                break;
+            case EvtType.EVT_WINDOW_RESIZED:
+                ResizeWindow();
+                break;
+        }
     }
 
 }

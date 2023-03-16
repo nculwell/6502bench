@@ -1,11 +1,20 @@
+using SDL2;
+using static SDL2.SDL;
 public class KeyboardHandler : IEventReceiver
 {
 
-    public KeyboardHandler() { }
+    private EventHandler _eventHandler;
+    private ILogger _logger;
 
-    public void RegisterEvents(EventHandler eh)
+    public KeyboardHandler(EventHandler eh, ILogger logger)
     {
-        eh.RegisterEventReceiver(this, new[] { EvtType.EVT_KEY_DOWN, EvtType.EVT_KEY_UP });
+        _eventHandler = eh;
+        _logger = logger;
+    }
+
+    public void RegisterEvents()
+    {
+        _eventHandler.RegisterEventReceiver(this, new[] { EvtType.EVT_KEY_DOWN, EvtType.EVT_KEY_UP });
     }
 
     public void ReceiveEvent(Evt e)
@@ -21,8 +30,16 @@ public class KeyboardHandler : IEventReceiver
 
     private void HandleKeypressEvent(Evt e)
     {
-        uint keysym = e.V ?? 0;
-        uint modifiers = e.W ?? 0;
+        SDL_Keycode keysym = (SDL_Keycode)e.X;
+        SDL_Keymod modifiers = (SDL_Keymod)e.Y;
+        if (keysym == SDL2.SDL.SDL_Keycode.SDLK_q && modifiers == SDL_Keymod.KMOD_NONE)
+        {
+            _eventHandler.RaiseEvent(new Evt(EvtType.EVT_QUIT_REQUESTED));
+        }
+        else
+        {
+            // TODO
+        }
     }
 
 }

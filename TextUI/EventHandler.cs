@@ -9,8 +9,6 @@ public partial class EventHandler
 
     const int EventTimeoutMs = 100;
 
-    public bool Quitting { get; private set; }
-
     private Dictionary<EvtType, SortedSet<IEventReceiver>> _eventReceivers = new();
     private uint _userEventIdStart;
 
@@ -49,13 +47,15 @@ public partial class EventHandler
 
     private bool HandleInternalEvents()
     {
-        ulong time = SDL_GetTicks64();
+        ulong now = SDL_GetTicks();
         bool haveInternalEvents = false;
         Evt? e;
         ulong evtTime;
-        while (_internalEventQueue.TryPeek(out e, out evtTime) && evtTime <= time)
+        while (_internalEventQueue.TryPeek(out e, out evtTime) && evtTime <= now)
         {
             haveInternalEvents = true;
+            e = _internalEventQueue.Dequeue();
+            LogEvent($"Internal event: " + e.Type);
             DispatchInternalEvent(e);
         }
         return haveInternalEvents;
@@ -70,19 +70,19 @@ public partial class EventHandler
         }
     }
 
-    private void RaiseInternalEvent(Evt e)
+    public void RaiseEvent(Evt e)
     {
         _internalEventQueue.Enqueue(e, e.TimeDue);
     }
 
-    private void RaiseInternalEventFuture(Evt e, ulong msAfterPresent)
+    public void RaiseEventFuture(Evt e, ulong msAfterPresent)
     {
-        ulong time = SDL_GetTicks64();
-        e.TimeDue = time + msAfterPresent;
-        RaiseInternalEvent(e);
+        ulong now = SDL_GetTicks();
+        e.TimeDue = now + msAfterPresent;
+        RaiseEvent(e);
     }
 
-    public void HandleSdlEvents(bool noWait)
+    private void HandleSdlEvents(bool noWait)
     {
         SDL_Event evt;
         int result = noWait
@@ -97,7 +97,7 @@ public partial class EventHandler
                     {
                         case SDL_WindowEventID.SDL_WINDOWEVENT_RESIZED:
                         case SDL_WindowEventID.SDL_WINDOWEVENT_SIZE_CHANGED:
-                            _video.CalculateWindowSize();
+                            RaiseEvent(new Evt(EvtType.EVT_WINDOW_RESIZED));
                             break;
                     }
                     LogEvent($"WindowEvent: " + evt.window.windowEvent.ToString());
@@ -112,21 +112,15 @@ public partial class EventHandler
                 case SDL_EventType.SDL_KEYDOWN:
                 case SDL_EventType.SDL_KEYUP:
                     {
-                        var newEvent = new SDL_Event();
                         var k = evt.key.keysym.sym;
+                        var m = evt.key.keysym.mod;
                         LogEvent($"Key: " + k);
-                        if (k == SDL_Keycode.SDLK_q)
-                        {
-                            newEvent.type = SDL_EventType.SDL_QUIT;
-                            newEvent.quit.timestamp = evt.key.timestamp;
-                            SDL_PushEvent(ref newEvent);
-                        }
+                        RaiseEvent(new Evt(EvtType.EVT_KEY_DOWN, x: (int)k, y: (int)m));
                     }
                     break;
                 case SDL_EventType.SDL_QUIT:
                     LogEvent($"Quit");
-                    // TODO: Confirm
-                    Quitting = true;
+                    RaiseEvent(new Evt(EvtType.EVT_QUIT_REQUESTED));
                     break;
             }
             result = SDL_PollEvent(out evt);

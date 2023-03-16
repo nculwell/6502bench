@@ -206,6 +206,9 @@ public class Video : IDisposable
     private void RenderGlyph(char c, int x, int y)
     {
         ushort cc = c;
+        if (cc < 32)
+            throw new Exception($"Unprintable character: ${(int)c:X02}");
+        cc -= 32;
         var src = new SDL_Rect()
         {
             x = cc % _glyphTextureDimCh.W,
