@@ -43,13 +43,22 @@ namespace SourceGen.Tests {
         /// </summary>
         [Fact]
         public void GenerateAllTestCases_MatchesExpectedSources() {
-            // Point the runner at cc65 if it is installed so the assemble-and-compare step
-            // actually runs instead of being skipped.  Unconfigured assemblers stay skipped.
-            string cc65Path = AssemblerSetup.TryConfigureCc65();
+            // Point the runner at any installed assembler so the assemble-and-compare step
+            // actually runs instead of being skipped.  Missing tools stay skipped.
+            Dictionary<AssemblerInfo.Id, string> tools = AssemblerSetup.ConfigureAvailable();
 
+            // Capture the runner's progress output: it is where per-case diagnostics go,
+            // so it is only surfaced if an assertion fails.
+            System.Text.StringBuilder progressLog = new System.Text.StringBuilder();
             BackgroundWorker worker = new BackgroundWorker();
             worker.WorkerReportsProgress = true;
-            worker.ProgressChanged += (sender, e) => { /* progress is not asserted on */ };
+            worker.ProgressChanged += (sender, e) => {
+                if (e.UserState is ProgressMessage pm) {
+                    progressLog.Append(pm.Text);
+                } else if (e.UserState is string text) {
+                    progressLog.Append(text);
+                }
+            };
 
             GenTest genTest = new GenTest();
             List<GenTest.GenTestResults> results = genTest.Run(worker);
@@ -57,29 +66,65 @@ namespace SourceGen.Tests {
             Assert.NotNull(results);
             Assert.NotEmpty(results);
 
-            List<GenTest.GenTestResults> failed =
-                results.Where(r => !r.GenerateOkay).ToList();
+            // Merlin32 v1.2 added required DSK/TYP directives, and the generator emits
+            // them when it sees a v1.2+ tool.  The checked-in fixtures predate that, so a
+            // v1.2 install legitimately produces two extra leading lines.  Anything else is
+            // a real difference, so classify per case rather than blanket-accepting.
+            bool merlinAddsAsmConfig = false;
+            if (tools.TryGetValue(AssemblerInfo.Id.Merlin32, out _)) {
+                AssemblerVersion merlinVersion =
+                    AssemblerInfo.GetAssembler(AssemblerInfo.Id.Merlin32).QueryVersion();
+                merlinAddsAsmConfig = merlinVersion != null &&
+                    merlinVersion.Version >= new CommonUtil.Version(1, 2);
+            }
+
+            List<GenTest.GenTestResults> failed = new List<GenTest.GenTestResults>();
+            List<string> explainedByAssemblerVersion = new List<string>();
+            foreach (GenTest.GenTestResults result in results.Where(r => !r.GenerateOkay)) {
+                if (merlinAddsAsmConfig && result.AsmId == AssemblerInfo.Id.Merlin32 &&
+                        MerlinDiffersOnlyByAsmConfig(result.PathName)) {
+                    explainedByAssemblerVersion.Add(result.FileName);
+                } else {
+                    failed.Add(result);
+                }
+            }
 
             // Report the offending cases rather than a bare boolean, so a regression is
             // actionable from the test output alone.
             string detail = string.Join(", ", failed.Select(f => f.FileName + "[" + f.AsmId + "]"));
-            Assert.True(failed.Count == 0, "Generation mismatched Expected for: " + detail);
+            Assert.True(failed.Count == 0, "Generation mismatched Expected for: " + detail +
+                "\n\nRunner output:\n" + Tail(progressLog.ToString(), 6000));
 
             // Any assembler that was actually run must produce a byte-identical binary --
             // unless the installed tool cannot assemble the project's own reference source
-            // either, in which case the tool simply disagrees with the version the Expected
-            // files were produced with.  Distinguishing the two keeps the suite meaningful
-            // without letting a toolchain difference masquerade as a regression.
+            // either, in which case the tool disagrees with the version the Expected files
+            // were produced with.  Distinguishing the two keeps the suite meaningful without
+            // letting a toolchain difference masquerade as a regression.
             List<GenTest.GenTestResults> asmFailed = results
                 .Where(r => r.AsmResults != null && !r.AssembleOkay).ToList();
 
             List<string> realFailures = new List<string>();
             List<string> toolMismatches = new List<string>();
             foreach (GenTest.GenTestResults failure in asmFailed) {
-                string referenceError = null;
-                bool referenceOk = cc65Path != null &&
-                    failure.AsmId == AssemblerInfo.Id.Cc65 &&
-                    ReferenceSourceAssembles(cc65Path, failure.PathName, out referenceError);
+                string referenceError = "assembler not configured";
+                bool referenceOk;
+
+                if (failure.AsmId == AssemblerInfo.Id.Acme ||
+                        failure.AsmId == AssemblerInfo.Id.Tass64) {
+                    // For these two the generated source is asserted byte-identical to the
+                    // checked-in Expected source (no version-dependent preamble), so an
+                    // assemble failure cannot be caused by our output: the same text would
+                    // fail the same way.  Re-assembling the reference would prove nothing,
+                    // so classify it directly and surface the tool's own diagnostics.
+                    referenceOk = false;
+                    referenceError = failure.AsmResults == null ? "(no result)" :
+                        (string.IsNullOrEmpty(failure.AsmResults.Stderr) ?
+                            failure.AsmResults.Stdout : failure.AsmResults.Stderr);
+                } else {
+                    referenceOk = tools.TryGetValue(failure.AsmId, out string toolPath) &&
+                        ReferenceSourceAssembles(failure.AsmId, toolPath, failure.PathName,
+                            out referenceError);
+                }
 
                 if (referenceOk) {
                     // The reference source assembles cleanly, so our generated source (which
@@ -95,24 +140,30 @@ namespace SourceGen.Tests {
                 "Assembled output did not match the source binary for: " +
                 string.Join(", ", realFailures));
 
-            // If cc65 was configured, make sure it really was exercised: a silent skip would
-            // otherwise make the assertions above vacuous.
-            if (cc65Path != null) {
-                int cc65Runs = results.Count(r =>
-                    r.AsmId == AssemblerInfo.Id.Cc65 && r.AsmResults != null);
-                Assert.True(cc65Runs > 0,
-                    "cc65 was configured from '" + cc65Path + "' but no case was assembled.");
+            // Each configured assembler must actually have been exercised: a silent skip
+            // would otherwise make the assertions above vacuous.
+            foreach (KeyValuePair<AssemblerInfo.Id, string> tool in tools) {
+                int runs = results.Count(r => r.AsmId == tool.Key && r.AsmResults != null);
+                Assert.True(runs > 0, tool.Key + " was configured from '" + tool.Value +
+                    "' but no case was assembled.");
+                System.Console.WriteLine("NOTE: " + tool.Key + " exercised " + runs +
+                    " case(s) from '" + tool.Value + "'.");
+            }
 
-                // Record the toolchain disagreement so it is visible in the test output
-                // rather than silently absorbed.
-                if (toolMismatches.Count > 0) {
-                    System.Console.WriteLine(
-                        "NOTE: the installed assembler rejects the checked-in reference " +
-                        "sources for " + toolMismatches.Count + " case(s), so those were " +
-                        "not used to judge the generated output:");
-                    foreach (string msg in toolMismatches) {
-                        System.Console.WriteLine("  " + msg);
-                    }
+            if (explainedByAssemblerVersion.Count > 0) {
+                System.Console.WriteLine("NOTE: " + explainedByAssemblerVersion.Count +
+                    " Merlin32 case(s) emit the v1.2 DSK/TYP header, which the checked-in " +
+                    "Expected sources predate; the remainder of each file matched exactly.");
+            }
+
+            // Record any toolchain disagreement so it is visible rather than silently absorbed.
+            if (toolMismatches.Count > 0) {
+                System.Console.WriteLine(
+                    "NOTE: the installed assembler rejects the checked-in reference sources " +
+                    "for " + toolMismatches.Count + " case(s), so those were not used to " +
+                    "judge the generated output:");
+                foreach (string msg in toolMismatches) {
+                    System.Console.WriteLine("  " + msg);
                 }
             }
         }
@@ -191,37 +242,196 @@ namespace SourceGen.Tests {
         /// the project's own Expected sources.
         /// </summary>
         /// <returns>True if the reference source assembled successfully.</returns>
-        private static bool ReferenceSourceAssembles(string toolPath, string casePath,
-                out string error) {
+        private static bool ReferenceSourceAssembles(AssemblerInfo.Id id, string toolPath,
+                string casePath, out string error) {
             string caseName = Path.GetFileName(casePath);
             string expectedDir = Path.Combine(Path.GetDirectoryName(casePath), "Expected");
-            string srcPath = Path.Combine(expectedDir, caseName + "_cc65.S");
-            string cfgPath = Path.Combine(expectedDir, caseName + "_cc65.cfg");
 
-            if (!File.Exists(srcPath) || !File.Exists(cfgPath)) {
+            string suffix;
+            string args;
+            switch (id) {
+                case AssemblerInfo.Id.Cc65:
+                    suffix = "_cc65";
+                    args = "--target none -C ref.cfg ref.S";
+                    break;
+                case AssemblerInfo.Id.Merlin32:
+                    suffix = "_merlin32";
+                    args = ". \"ref.S\"";
+                    break;
+                default:
+                    error = "no reference-source check implemented for " + id;
+                    return false;
+            }
+
+            string srcPath = Path.Combine(expectedDir, caseName + suffix + ".S");
+            if (!File.Exists(srcPath)) {
                 error = "reference source not found in Expected";
                 return false;
             }
 
-            string workDir = Path.Combine(Path.GetTempPath(), "sg-ref-" + caseName);
+            string workDir = Path.Combine(Path.GetTempPath(), "sg-ref-" + caseName + suffix);
             Directory.CreateDirectory(workDir);
-            File.Copy(srcPath, Path.Combine(workDir, "ref.S"), true);
-            File.Copy(cfgPath, Path.Combine(workDir, "ref.cfg"), true);
 
-            ShellCommand cmd = new ShellCommand(toolPath,
-                "--target none -C ref.cfg ref.S", workDir, null);
+            if (id == AssemblerInfo.Id.Merlin32) {
+                // Merlin32 v1.2 requires DSK/TYP and will not produce any output without
+                // them, so the checked-in Expected source is not a valid v1.2 input on its
+                // own.  Supply the directives the tool demands, naming the output "ref" to
+                // match what the caller expects.
+                string[] original = File.ReadAllLines(srcPath);
+                List<string> withHeader = new List<string>(original.Length + 2) {
+                    "         DSK   ref",
+                    "         TYP   BIN",
+                };
+                withHeader.AddRange(original);
+                File.WriteAllLines(Path.Combine(workDir, "ref.S"), withHeader);
+            } else {
+                File.Copy(srcPath, Path.Combine(workDir, "ref.S"), true);
+            }
+
+            if (id == AssemblerInfo.Id.Cc65) {
+                string cfgPath = Path.Combine(expectedDir, caseName + suffix + ".cfg");
+                if (!File.Exists(cfgPath)) {
+                    error = "reference linker config not found in Expected";
+                    return false;
+                }
+                File.Copy(cfgPath, Path.Combine(workDir, "ref.cfg"), true);
+            }
+
+            ShellCommand cmd = new ShellCommand(toolPath, args, workDir, null);
             cmd.Execute();
 
-            error = string.IsNullOrEmpty(cmd.Stderr) ? cmd.Stdout : cmd.Stderr;
-            return cmd.ExitCode == 0;
+            // Do not trust the exit code: Merlin32 returns 0 even when it reports errors,
+            // signalling failure only by not writing the output binary.  GenTest treats a
+            // missing output as failure for the same reason.
+            string outputPath = Path.Combine(workDir, "ref");
+            bool producedOutput = File.Exists(outputPath);
+
+            string diagnostics = string.IsNullOrEmpty(cmd.Stderr) ? cmd.Stdout : cmd.Stderr;
+            error = string.Empty;
+
+            if (cmd.ExitCode != 0) {
+                // Conventional failure: the tool reported errors itself.  Falling back to the
+                // exit code keeps the reason visible when the tool writes its diagnostics
+                // somewhere other than stdout/stderr.
+                error = string.IsNullOrWhiteSpace(diagnostics)
+                    ? "tool exited " + cmd.ExitCode + " with no captured diagnostics"
+                    : diagnostics;
+                return false;
+            }
+            if (!producedOutput) {
+                // Merlin32 style: errors on stdout, exit status still 0.
+                error = "no output binary produced although the tool exited 0";
+                return false;
+            }
+
+            // Producing a file is not enough: it has to be the right bytes.  Otherwise a
+            // tool that silently mis-assembles a construct would look like a clean reference
+            // and the failure would be blamed on the generated source.
+            byte[] reference = File.ReadAllBytes(outputPath);
+            byte[] expectedBinary = File.ReadAllBytes(casePath);
+            int limit = Math.Min(reference.Length, expectedBinary.Length);
+            for (int i = 0; i < limit; i++) {
+                if (reference[i] != expectedBinary[i]) {
+                    error = string.Format(
+                        "reference source assembled to different bytes: offset +{0:x6} is " +
+                        "${1:x2}, expected ${2:x2}", i, reference[i], expectedBinary[i]);
+                    return false;
+                }
+            }
+            if (reference.Length != expectedBinary.Length) {
+                error = "reference source assembled to a different length: " +
+                    reference.Length + " vs " + expectedBinary.Length;
+                return false;
+            }
+            return true;
         }
 
+        /// <summary>
+        /// Returns true if the generated Merlin32 source differs from the checked-in Expected
+        /// file only by the leading DSK/TYP directives that v1.2+ requires.
+        ///
+        /// The generated file is located the same way GenTest lays out its work directories;
+        /// if that path cannot be found this returns false so the mismatch is reported rather
+        /// than silently excused.
+        /// </summary>
+        private static bool MerlinDiffersOnlyByAsmConfig(string casePath) {
+            string caseName = Path.GetFileName(casePath);
+            int dash = caseName.IndexOf('-');
+            if (dash <= 0) {
+                return false;
+            }
+            string testNum = caseName.Substring(0, dash);
+            string genPath = Path.Combine(AppContext.BaseDirectory, "SGTestData", "tmp" + testNum,
+                caseName + "_merlin32.S");
+            string expPath = Path.Combine(Path.GetDirectoryName(casePath), "Expected",
+                caseName + "_merlin32.S");
+            if (!File.Exists(genPath) || !File.Exists(expPath)) {
+                return false;
+            }
+
+            List<string> generated = new List<string>();
+            foreach (string line in File.ReadAllLines(genPath)) {
+                // The v1.2 DSK/TYP block is emitted after any leading header comment, so
+                // drop it wherever it appears rather than only at the top of the file.
+                // Match on whitespace-separated tokens: the generator pads between the
+                // directive and its argument, so a plain prefix test is not reliable.
+                string[] parts = line.Split((char[])null,
+                    StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 2 &&
+                        ((parts[0] == "DSK" && parts[1].EndsWith("_merlin32")) ||
+                         (parts[0] == "TYP" && parts[1] == "BIN"))) {
+                    continue;
+                }
+                generated.Add(line);
+            }
+            string[] expected = File.ReadAllLines(expPath);
+
+            if (generated.Count != expected.Length) {
+                return false;
+            }
+            for (int i = 0; i < expected.Length; i++) {
+                if (generated[i] != expected[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the last part of a log, to keep assertion messages readable.
+        /// </summary>
+        private static string Tail(string text, int maxChars) {
+            if (string.IsNullOrEmpty(text)) {
+                return "(no output)";
+            }
+            return text.Length <= maxChars ? text : "...\n" + text.Substring(text.Length - maxChars);
+        }
+
+        /// <summary>
+        /// Picks the most informative line from a tool's output: the first line mentioning an
+        /// error, otherwise the first non-blank line.  Tool banners often start with a blank
+        /// line, so taking the literal first line hides useful information.
+        /// </summary>
         private static string FirstLine(string text) {
             if (string.IsNullOrEmpty(text)) {
                 return "(no diagnostics)";
             }
             string[] lines = text.Split('\n');
-            return lines[0].TrimEnd('\r');
+            foreach (string line in lines) {
+                if (line.IndexOf("rror", StringComparison.Ordinal) >= 0) {
+                    string trimmedError = line.Trim();
+                    if (trimmedError.Length > 0) {
+                        return trimmedError;
+                    }
+                }
+            }
+            foreach (string line in lines) {
+                string trimmed = line.Trim();
+                if (trimmed.Length > 0) {
+                    return trimmed;
+                }
+            }
+            return "(no diagnostics)";
         }
 
         /// <summary>

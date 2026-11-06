@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 using SourceGen.AsmGen;
@@ -35,34 +36,78 @@ namespace SourceGen.Tests {
     /// No machine-specific paths are baked in.
     /// </summary>
     public static class AssemblerSetup {
-        public static string Cc65EnvironmentVariable {
-            get { return "SOURCEGEN_CC65_PATH"; }
+        /// <summary>
+        /// Environment variable that can point at cc65's cl65.
+        /// </summary>
+        public const string Cc65EnvVar = "SOURCEGEN_CC65_PATH";
+
+        /// <summary>
+        /// Environment variable that can point at Merlin32.
+        /// </summary>
+        public const string Merlin32EnvVar = "SOURCEGEN_MERLIN32_PATH";
+
+        /// <summary>
+        /// Environment variable that can point at ACME.
+        /// </summary>
+        public const string AcmeEnvVar = "SOURCEGEN_ACME_PATH";
+
+        /// <summary>
+        /// Environment variable that can point at 64tass.
+        /// </summary>
+        public const string Tass64EnvVar = "SOURCEGEN_64TASS_PATH";
+
+        /// <summary>
+        /// Configures every assembler that can be found.
+        /// </summary>
+        /// <returns>Map of assembler id to the executable path that was configured.</returns>
+        public static Dictionary<AssemblerInfo.Id, string> ConfigureAvailable() {
+            Dictionary<AssemblerInfo.Id, string> configured =
+                new Dictionary<AssemblerInfo.Id, string>();
+
+            string cc65 = TryConfigure(AssemblerInfo.Id.Cc65, Cc65EnvVar, "cl65");
+            if (cc65 != null) {
+                configured[AssemblerInfo.Id.Cc65] = cc65;
+            }
+            string merlin = TryConfigure(AssemblerInfo.Id.Merlin32, Merlin32EnvVar,
+                "Merlin32");
+            if (merlin != null) {
+                configured[AssemblerInfo.Id.Merlin32] = merlin;
+            }
+            string acme = TryConfigure(AssemblerInfo.Id.Acme, AcmeEnvVar, "acme");
+            if (acme != null) {
+                configured[AssemblerInfo.Id.Acme] = acme;
+            }
+            string tass64 = TryConfigure(AssemblerInfo.Id.Tass64, Tass64EnvVar, "64tass");
+            if (tass64 != null) {
+                configured[AssemblerInfo.Id.Tass64] = tass64;
+            }
+            return configured;
         }
 
         /// <summary>
-        /// Configures cc65's assembler if it can be found, so the regression tests exercise
-        /// the assemble-and-compare step.  Returns the executable path used, or null.
+        /// Configures one assembler.  Returns the executable path used, or null if the tool
+        /// was not found.
         /// </summary>
-        public static string TryConfigureCc65() {
-            string path = FindExecutable(Cc65EnvironmentVariable, "cl65");
+        private static string TryConfigure(AssemblerInfo.Id id, string envVar,
+                string exeName) {
+            string path = FindExecutable(envVar, exeName);
             if (path == null) {
                 return null;
             }
 
             // Start from the assembler's own defaults (column widths and so on) and only
             // override the executable location.
-            AssemblerConfig config =
-                AssemblerInfo.GetAssembler(AssemblerInfo.Id.Cc65).GetDefaultConfig();
+            IAssembler asm = AssemblerInfo.GetAssembler(id);
+            AssemblerConfig config = asm.GetDefaultConfig();
             config.ExecutablePath = path;
-            AssemblerConfig.SetConfig(AppSettings.Global, AssemblerInfo.Id.Cc65, config);
+            AssemblerConfig.SetConfig(AppSettings.Global, id, config);
 
             // Fail loudly here rather than silently skipping the assemble step later.
-            AssemblerVersion version =
-                AssemblerInfo.GetAssembler(AssemblerInfo.Id.Cc65).QueryVersion();
+            AssemblerVersion version = asm.QueryVersion();
             if (version == null) {
                 throw new InvalidOperationException(
-                    "Found '" + path + "' but could not query its version; the configured " +
-                    "path may be wrong.");
+                    "Found '" + path + "' for " + id + " but could not query its version; " +
+                    "the configured path may be wrong or the tool may be unusable.");
             }
             return path;
         }
@@ -76,19 +121,7 @@ namespace SourceGen.Tests {
         public static string FindExecutable(string envVar, string exeName) {
             string overridePath = Environment.GetEnvironmentVariable(envVar);
             if (!string.IsNullOrEmpty(overridePath)) {
-                // Accept either the directory or the executable itself.
-                if (Directory.Exists(overridePath)) {
-                    string candidate = Path.Combine(overridePath, exeName);
-                    if (File.Exists(candidate)) {
-                        return candidate;
-                    }
-                    string exeCandidate = Path.Combine(overridePath, exeName + ".exe");
-                    if (File.Exists(exeCandidate)) {
-                        return exeCandidate;
-                    }
-                    return null;
-                }
-                return File.Exists(overridePath) ? overridePath : null;
+                return ResolveCandidate(overridePath, exeName);
             }
 
             string pathVar = Environment.GetEnvironmentVariable("PATH");
@@ -99,16 +132,48 @@ namespace SourceGen.Tests {
                 if (string.IsNullOrEmpty(dir)) {
                     continue;
                 }
-                string candidate = Path.Combine(dir, exeName);
-                if (File.Exists(candidate)) {
+                string candidate = ResolveCandidate(dir, exeName);
+                if (candidate != null) {
                     return candidate;
-                }
-                string exeCandidate = Path.Combine(dir, exeName + ".exe");
-                if (File.Exists(exeCandidate)) {
-                    return exeCandidate;
                 }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Interprets a configured path as either a directory or an executable.
+        /// </summary>
+        private static string ResolveCandidate(string path, string exeName) {
+            if (Directory.Exists(path)) {
+                string candidate = Path.Combine(path, exeName);
+                if (File.Exists(candidate) && IsExecutable(candidate)) {
+                    return candidate;
+                }
+                string exeCandidate = Path.Combine(path, exeName + ".exe");
+                return File.Exists(exeCandidate) ? exeCandidate : null;
+            }
+            if (File.Exists(path)) {
+                // Allow pointing directly at the executable, whichever name it has.
+                return IsExecutable(path) ? path : null;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Reports whether a file has the user-execute permission bit.  On Windows this is
+        /// meaningless, so only apply the check on Unix-like systems.
+        /// </summary>
+        private static bool IsExecutable(string path) {
+            if (OperatingSystem.IsWindows()) {
+                return true;
+            }
+            try {
+                UnixFileMode mode = File.GetUnixFileMode(path);
+                return (mode & (UnixFileMode.UserExecute | UnixFileMode.GroupExecute |
+                    UnixFileMode.OtherExecute)) != 0;
+            } catch (Exception) {
+                return true;        // platform without mode support; assume usable
+            }
         }
     }
 }

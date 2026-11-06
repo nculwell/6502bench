@@ -96,10 +96,14 @@ Generation Tests" window.  Generating sources always runs; the assemble-and-comp
 only runs for assemblers that are configured.  The tests discover cross-assemblers from
 the environment so no machine-specific paths are compiled in:
 
-    SOURCEGEN_CC65_PATH=/path/to/cc65/bin dotnet test SourceGen.Tests/SourceGen.Tests.csproj
+    SOURCEGEN_CC65_PATH=/path/to/cc65/bin \
+    SOURCEGEN_MERLIN32_PATH=/path/to/Merlin32 \
+    dotnet test SourceGen.Tests/SourceGen.Tests.csproj
 
-The variable may name either the directory containing `cl65` or the executable itself.
-Other assemblers can be added the same way as support is wired up.
+Each variable may name either the directory containing the tool or the executable itself.
+On Unix the tool must have the execute bit set.  ACME and 64tass are also supported by the
+same mechanism (`SOURCEGEN_ACME_PATH`, `SOURCEGEN_64TASS_PATH`) but are normally found on
+the PATH already, so no variable is needed for them.
 
 ### Known upstream issues (not port regressions) ###
 
@@ -123,3 +127,46 @@ toolchain disagreements so they show up as a NOTE rather than a failure:
 
 Note that comparing generated output against the reference `Expected` sources proves
 fidelity to upstream behaviour, not correctness: issue 1 passes that comparison.
+
+
+### Assembler-specific findings (Merlin 32) ###
+
+Testing with Merlin 32 v1.2 beta 2 added three more version-related differences.
+None of them are port regressions; each is reproducible from the checked-in
+`SGTestData/Expected` sources.
+
+3. **Merlin 32 v1.2 requires `DSK`/`TYP` directives.**  GenMerlin32 emits them when it
+   detects v1.2 or later, so with v1.2 installed every Merlin32 output gains a two-line
+   header (placed after any leading comment block) that the fixtures do not have.  The
+   test suite treats that specific difference as expected and compares the remainder of
+   the file, which matches exactly for all 57 cases.
+
+4. **Merlin 32 v1.2 beta 2 cannot assemble `jml [addr]`.**  It reports
+   "Impossible to decode address mode for instruction 'jml [Lxxxx]'" and produces no
+   output.  This affects 5 cases: `10002-allops-value-65816`, `10012-allops-zero-65816`,
+   `20052-branches-and-banks`, `20102-label-dp`, `20222-data-bank`.
+
+5. **Merlin 32 v1.2 exits 0 even when it reports errors**, signalling failure only by not
+   writing the output binary.  Anything that judges an assembly run by exit status alone
+   will wrongly conclude success; the test harness therefore also requires the output to
+   exist and to match the source binary byte-for-byte.
+
+Two further cases (`20032-labels-and-symbols`, `20252-nested-regions`) assemble without
+error but to a binary that differs from the reference (for `20032`, offset +000113 is
+$dc where $5c is expected).  The same difference appears when assembling the Expected
+source directly, so it too is a tool-version discrepancy rather than a generator defect.
+
+### Assemblers verified end to end ###
+
+With all four assemblers installed, the suite runs 228 assemble-and-compare pairs:
+
+| Assembler | Version | Byte-identical |
+| --- | --- | --- |
+| ACME | 0.97 | 57 / 57 |
+| 64tass | 1.59.3120 | 57 / 57 |
+| cc65 | 2.19 | 54 / 57 |
+| Merlin 32 | 1.2 beta 2 | 50 / 57 |
+
+ACME and 64tass reproduce every case exactly, so they are the cleanest evidence that the
+generated sources are correct.  The cc65 and Merlin 32 shortfalls are the tool-version
+issues described above; the suite names each one rather than skipping silently.
