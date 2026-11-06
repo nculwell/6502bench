@@ -82,6 +82,10 @@ namespace SourceGen.Tui {
                     null,
                     new MenuItem("Edit _Label...", "Ctrl+L", () => EditLabel()),
                     new MenuItem("Edit _Comment...", "Ctrl+;", () => EditComment()),
+                    new MenuItem("Edit _Long Comment...", "Ctrl+K", () => EditLongComment()),
+                    null,
+                    new MenuItem("_Find...", "Ctrl+F", () => Find()),
+                    new MenuItem("Find _Next", "F3", () => FindNext()),
                 }),
                 new MenuBarItem("_Help", new MenuItem[] {
                     new MenuItem("_Keys", "", () => ShowKeys()),
@@ -187,6 +191,18 @@ namespace SourceGen.Tui {
                         break;
                     case Key.g when ctrl:
                         GenerateAssembly();
+                        args.Handled = true;
+                        break;
+                    case Key.k when ctrl:
+                        EditLongComment();
+                        args.Handled = true;
+                        break;
+                    case Key.f when ctrl:
+                        Find();
+                        args.Handled = true;
+                        break;
+                    case Key.F3:
+                        FindNext();
                         args.Handled = true;
                         break;
                 }
@@ -314,6 +330,111 @@ namespace SourceGen.Tui {
             RefreshView();
         }
 
+        /// <summary>
+        /// Prompts for a search string and jumps to the next match.
+        /// </summary>
+        private static void Find() {
+            if (!sModel.HasProject) {
+                MessageBox.ErrorQuery("Find", "No project is open.", "OK");
+                return;
+            }
+
+            Dialog dlg = new Dialog("Find", 60, 9);
+            dlg.Add(new Label("Search for:") { X = 1, Y = 1 });
+            TextField field = new TextField(sModel.LastSearchText ?? string.Empty) {
+                X = 1,
+                Y = 2,
+                Width = Dim.Fill(2),
+            };
+            dlg.Add(field);
+            CheckBox matchCase = new CheckBox("Match case", sModel.LastSearchMatchCase) {
+                X = 1,
+                Y = 3,
+            };
+            dlg.Add(matchCase);
+
+            bool accepted = false;
+            string needle = null;
+            bool caseSensitive = false;
+            Button ok = new Button("Find Next", true);
+            ok.Clicked += () => {
+                accepted = true;
+                needle = field.Text?.ToString() ?? string.Empty;
+                caseSensitive = matchCase.Checked;
+                Application.RequestStop();
+            };
+            dlg.AddButton(ok);
+            dlg.AddButton(new Button("Cancel"));
+
+            field.SetFocus();
+            Application.Run(dlg);
+
+            if (!accepted || string.IsNullOrEmpty(needle)) {
+                return;
+            }
+            if (!sModel.FindNext(needle, caseSensitive, out string error)) {
+                MessageBox.ErrorQuery("Find", error ?? "Not found.", "OK");
+            }
+            RefreshView();
+        }
+
+        /// <summary>
+        /// Repeats the last search.
+        /// </summary>
+        private static void FindNext() {
+            if (!sModel.HasProject) {
+                return;
+            }
+            if (!sModel.FindAgain(out string error)) {
+                MessageBox.ErrorQuery("Find", error ?? "Not found.", "OK");
+                return;
+            }
+            RefreshView();
+        }
+
+        /// <summary>
+        /// Edits the multi-line comment attached to the selected line.
+        /// </summary>
+        private static void EditLongComment() {
+            if (!sModel.HasProject || sModel.SelectedLine < 0) {
+                MessageBox.ErrorQuery("Edit Long Comment", "Select a line first.", "OK");
+                return;
+            }
+
+            Dialog dlg = new Dialog("Edit Long Comment", 76, 20);
+            dlg.Add(new Label("Comment text (empty removes it):") { X = 1, Y = 1 });
+            TextView view = new TextView() {
+                X = 1,
+                Y = 2,
+                Width = Dim.Fill(2),
+                Height = Dim.Fill(3),
+                Text = sModel.GetSelectedLongComment(),
+            };
+            dlg.Add(view);
+
+            bool accepted = false;
+            string text = null;
+            Button ok = new Button("OK", true);
+            ok.Clicked += () => {
+                accepted = true;
+                text = view.Text?.ToString() ?? string.Empty;
+                Application.RequestStop();
+            };
+            dlg.AddButton(ok);
+            dlg.AddButton(new Button("Cancel"));
+
+            view.SetFocus();
+            Application.Run(dlg);
+
+            if (!accepted) {
+                return;
+            }
+            if (!sModel.SetSelectedLongComment(text, out string error)) {
+                MessageBox.ErrorQuery("Edit Long Comment", error ?? "Unknown error", "OK");
+            }
+            RefreshView();
+        }
+
         private static void GenerateAssembly() {
             if (!sModel.HasProject) {
                 MessageBox.ErrorQuery("Generate Assembly", "No project is open.", "OK");
@@ -379,6 +500,7 @@ namespace SourceGen.Tui {
         private static void ShowKeys() {
             MessageBox.Query("Keys",
                 "Up/Down/PgUp/PgDn/Home/End  move  |  Ctrl+L label  |  Ctrl+; comment\n" +
+                "Ctrl+K long comment  |  Ctrl+F find  |  F3 find next\n" +
                 "Ctrl+Z undo  |  Ctrl+Y redo  |  Ctrl+S save  |  Ctrl+O open\n" +
                 "Ctrl+G generate assembly  |  Ctrl+Q quit",
                 "OK");

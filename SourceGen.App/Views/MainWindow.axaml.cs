@@ -136,8 +136,9 @@ namespace SourceGen.Views {
             CloseCommand = new RelayCommand(CloseProject);
             UndoCommand = new RelayCommand(() => _ = UndoAsync(), () => mController.CanUndo);
             RedoCommand = new RelayCommand(() => _ = RedoAsync(), () => mController.CanRedo);
-            FindCommand = Pending("Find");
-            FindNextCommand = Pending("Find Next");
+            FindCommand = new RelayCommand(ShowFind, () => mController.HasProject);
+            FindNextCommand = new RelayCommand(() => FindAgain(),
+                () => mController.HasProject && mLastSearchText.Length > 0);
             FindPreviousCommand = Pending("Find Previous");
             FindAllCommand = Pending("Find All");
             GotoCommand = Pending("Goto");
@@ -158,7 +159,8 @@ namespace SourceGen.Views {
                 () => GetSelectedOffset() >= 0);
             EditCommentCommand = new RelayCommand(() => _ = EditCommentAsync(),
                 () => GetSelectedOffset() >= 0);
-            EditLongCommentCommand = Pending("Edit Long Comment");
+            EditLongCommentCommand = new RelayCommand(() => _ = EditLongCommentAsync(),
+                () => GetSelectedOffset() >= 0);
             EditNoteCommand = Pending("Edit Note");
             EditAddressCommand = Pending("Edit Address");
             EditStatusFlagsCommand = Pending("Edit Status Flags");
@@ -225,6 +227,62 @@ namespace SourceGen.Views {
             await Ui.CopyTextAsync(this, sb.ToString());
         }
 
+        // ---- search ----
+
+        private string mLastSearchText = string.Empty;
+        private bool mLastSearchMatchCase;
+        private FindDialog mFindDialog;
+
+        /// <summary>
+        /// Opens (or re-focuses) the find dialog.
+        /// </summary>
+        private void ShowFind() {
+            if (mFindDialog != null) {
+                mFindDialog.Activate();
+                return;
+            }
+            mFindDialog = new FindDialog { OnFind = DoFind };
+            mFindDialog.Configure(mLastSearchText, mLastSearchMatchCase);
+            mFindDialog.Closed += (sender, e) => mFindDialog = null;
+            mFindDialog.Show(this);
+        }
+
+        /// <summary>
+        /// Runs a search from the find dialog and reports the outcome to it.
+        /// </summary>
+        private string DoFind(string text, bool matchCase) {
+            mLastSearchText = text;
+            mLastSearchMatchCase = matchCase;
+            return FindAndReport();
+        }
+
+        /// <summary>
+        /// Repeats the last search (F3 / Find Next).
+        /// </summary>
+        private void FindAgain() {
+            if (mLastSearchText.Length == 0) {
+                ShowFind();
+                return;
+            }
+            string status = FindAndReport();
+            this.FindControl<TextBlock>("statusBarText").Text = status;
+        }
+
+        private string FindAndReport() {
+            ListBox list = this.FindControl<ListBox>("codeListView");
+            int startLine = list?.SelectedIndex ?? -1;
+
+            int match = mController.FindNext(mLastSearchText, startLine,
+                mLastSearchMatchCase, out bool wrapped);
+            if (match < 0) {
+                return "Not found: " + mLastSearchText;
+            }
+
+            mSelectedLineIndex = match;
+            RefreshFromController();
+            return (wrapped ? "Wrapped to top -- " : "") + "Found at line " + (match + 1);
+        }
+
         // ---- editing ----
 
         /// <summary>
@@ -289,6 +347,26 @@ namespace SourceGen.Views {
         private async Task SaveAsync() {
             if (!mController.SaveProject(out string error)) {
                 await Dialogs.ShowAsync(this, error, "Save Project");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        private async Task EditLongCommentAsync() {
+            int offset = GetSelectedOffset();
+            if (offset < 0) {
+                await Dialogs.ShowAsync(this, "Select a line first.", "Edit Long Comment");
+                return;
+            }
+
+            EditLongCommentDialog dlg = new EditLongCommentDialog();
+            dlg.Configure(DescribeOffset(offset), mController.GetLongCommentAt(offset));
+            if (await dlg.ShowDialog<bool>(this) != true) {
+                return;
+            }
+
+            if (!mController.SetLongComment(offset, dlg.CommentText, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Edit Long Comment");
                 return;
             }
             RefreshFromController();
@@ -400,6 +478,9 @@ namespace SourceGen.Views {
 
             // Undo/redo availability changed.
             SaveCommand?.RaiseCanExecuteChanged();
+            FindCommand?.RaiseCanExecuteChanged();
+            FindNextCommand?.RaiseCanExecuteChanged();
+            EditLongCommentCommand?.RaiseCanExecuteChanged();
             UndoCommand?.RaiseCanExecuteChanged();
             RedoCommand?.RaiseCanExecuteChanged();
             EditLabelCommand?.RaiseCanExecuteChanged();

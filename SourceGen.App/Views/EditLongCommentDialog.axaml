@@ -1,0 +1,21 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SourceGen.Views.EditLongCommentDialog"
+        Title="Edit Long Comment"
+        Width="640"
+        Height="460"
+        WindowStartupLocation="CenterOwner">
+
+  <DockPanel Margin="16">
+    <TextBlock DockPanel.Dock="Top" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,8"
+               Text="Multi-line comment. Leave empty to remove it." />
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                HorizontalAlignment="Right" Spacing="8" Margin="0,8,0,0">
+      <Button Name="okButton" Content="OK" IsDefault="True" MinWidth="84" />
+      <Button Name="cancelButton" Content="Cancel" IsCancel="True" MinWidth="84" />
+    </StackPanel>
+    <TextBox Name="commentBox" AcceptsReturn="True" TextWrapping="Wrap"
+             VerticalContentAlignment="Top" />
+  </DockPanel>
+
+</Window>

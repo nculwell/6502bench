@@ -191,11 +191,15 @@ the analyzer, and fills the code, symbol, message and note panes; that path is c
 `AppControllerTests`, which opens a real example project and asserts a disassembly is
 produced.  This is verified headlessly because the CI container has no display.
 
-Not yet ported: the editing commands.  Undo/redo, the operand/label/comment editors, the
-tools (hex dump, charts, file slicer), the visualization editors and the export and
-assemble dialogs are still only present in the WPF sources, and the corresponding menu
-commands report "Not Yet Ported".  Until those land, the Avalonia application is a viewer,
-not an editor.
+Editing supported by both front ends: labels, end-of-line comments, multi-line (long)
+comments, undo/redo, save, and listing search (find / find next, with a match-case option).
+Long comments are stored and rendered through the same MultiLineComment type the original
+application uses, so they round-trip with existing project files.
+
+Not yet ported: the remaining editors and tools.  Operand formatting, notes, project
+properties, the tools (hex dump, charts, file slicer), the visualization editors and the
+export/assemble dialogs are still only present in the WPF sources, and the corresponding
+menu commands report "Not Yet Ported".
 
 
 ## Terminal UI ##
@@ -207,9 +211,9 @@ generate assembly source.
 
     dotnet run --project SourceGen.Tui/SourceGen.Tui.csproj [path/to/project.dis65]
 
-Keys: arrows/PgUp/PgDn/Home/End move, Ctrl+L edits the label, Ctrl+; the comment, Ctrl+Z/Y
-undo/redo, Ctrl+S saves, Ctrl+O opens, Ctrl+G generates assembly, Ctrl+Q quits.  The menus
-expose the same commands.
+Keys: arrows/PgUp/PgDn/Home/End move, Ctrl+L edits the label, Ctrl+; the comment, Ctrl+K
+the multi-line comment, Ctrl+F finds (F3 repeats), Ctrl+Z/Y undo/redo, Ctrl+S saves, Ctrl+O
+opens, Ctrl+G generates assembly, Ctrl+Q quits.  The menus expose the same commands.
 
 Design note: all behaviour lives in `TuiModel`, which knows nothing about terminals.  The
 Terminal.Gui layer in `Program.cs` only wires widgets to it.  That keeps the TUI testable

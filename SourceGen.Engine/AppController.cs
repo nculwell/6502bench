@@ -515,6 +515,89 @@ namespace SourceGen {
         }
 
         /// <summary>
+        /// Multi-line comment text at an offset, or empty string if none.
+        /// </summary>
+        public string GetLongCommentAt(int offset) {
+            if (mProject == null) {
+                return string.Empty;
+            }
+            if (mProject.LongComments.TryGetValue(offset, out MultiLineComment mlc)) {
+                return mlc.Text ?? string.Empty;
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Sets or clears the multi-line comment at an offset.
+        /// </summary>
+        /// <param name="offset">File offset the comment is attached to.</param>
+        /// <param name="text">New comment text; empty removes the comment.</param>
+        /// <param name="error">On failure, a message describing the problem.</param>
+        public bool SetLongComment(int offset, string text, out string error) {
+            error = null;
+            if (mProject == null) {
+                error = "No project is open.";
+                return false;
+            }
+            if (offset < 0 || offset > mProject.FileDataLength) {
+                error = "Offset is outside the file.";
+                return false;
+            }
+
+            mProject.LongComments.TryGetValue(offset, out MultiLineComment oldComment);
+
+            MultiLineComment newComment = null;
+            if (!string.IsNullOrEmpty(text)) {
+                newComment = new MultiLineComment(text);
+            }
+
+            if (oldComment == newComment) {
+                return true;
+            }
+
+            UndoableChange change =
+                UndoableChange.CreateLongCommentChange(offset, oldComment, newComment);
+            return ApplyChangeSet(new ChangeSet(change), "long comment", out error);
+        }
+
+        /// <summary>
+        /// Searches the listing for a substring, starting after the given line.
+        /// </summary>
+        /// <param name="needle">Text to look for.</param>
+        /// <param name="startLine">Line to start after.</param>
+        /// <param name="matchCase">If set, the comparison is case-sensitive.</param>
+        /// <param name="wrapped">Set if the search restarted at the top.</param>
+        /// <returns>Line index of the match, or -1.</returns>
+        public int FindNext(string needle, int startLine, bool matchCase, out bool wrapped) {
+            wrapped = false;
+            if (mProject == null || mLineListGen == null || string.IsNullOrEmpty(needle)) {
+                return -1;
+            }
+
+            int count = mLineListGen.Count;
+            if (count == 0) {
+                return -1;
+            }
+
+            StringComparison comparison = matchCase ? StringComparison.Ordinal :
+                StringComparison.OrdinalIgnoreCase;
+
+            // Search to the end, then wrap around to the beginning.
+            for (int i = Math.Max(0, startLine + 1); i < count; i++) {
+                if (mLineListGen.GetSearchString(i).IndexOf(needle, comparison) >= 0) {
+                    return i;
+                }
+            }
+            for (int i = 0; i <= Math.Min(startLine, count - 1); i++) {
+                if (mLineListGen.GetSearchString(i).IndexOf(needle, comparison) >= 0) {
+                    wrapped = true;
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
         /// Writes the project back to its .dis65 file.
         /// </summary>
         public bool SaveProject(out string error) {

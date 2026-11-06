@@ -301,6 +301,89 @@ namespace SourceGen.Tui {
             }
         }
 
+        /// <summary>
+        /// Multi-line comment attached to the selected line.
+        /// </summary>
+        public string GetSelectedLongComment() {
+            int offset = SelectedOffset;
+            return offset < 0 ? string.Empty : Controller.GetLongCommentAt(offset);
+        }
+
+        /// <summary>
+        /// Sets or clears the multi-line comment on the selected line.
+        /// </summary>
+        public bool SetSelectedLongComment(string text, out string error) {
+            int offset = SelectedOffset;
+            if (offset < 0) {
+                error = "No line is selected.";
+                return false;
+            }
+            bool ok = Controller.SetLongComment(offset, text, out error);
+            if (ok) {
+                RefreshSelection();
+            }
+            return ok;
+        }
+
+        // ---- search ----
+
+        /// <summary>
+        /// Last text searched for; empty until a search has run.
+        /// </summary>
+        public string LastSearchText { get; private set; } = string.Empty;
+
+        /// <summary>
+        /// Whether the last search was case-sensitive.
+        /// </summary>
+        public bool LastSearchMatchCase { get; private set; }
+
+        /// <summary>
+        /// Searches forward from the current selection.
+        /// </summary>
+        /// <param name="needle">Text to find.</param>
+        /// <param name="matchCase">Case-sensitive comparison if set.</param>
+        /// <param name="error">Set when nothing matched.</param>
+        /// <returns>True if a match was found and selected.</returns>
+        public bool FindNext(string needle, bool matchCase, out string error) {
+            error = null;
+            LastSearchText = needle ?? string.Empty;
+            LastSearchMatchCase = matchCase;
+            return RunSearch(out error);
+        }
+
+        /// <summary>
+        /// Repeats the previous search.
+        /// </summary>
+        public bool FindAgain(out string error) {
+            error = null;
+            if (string.IsNullOrEmpty(LastSearchText)) {
+                error = "No search has been performed yet.";
+                return false;
+            }
+            return RunSearch(out error);
+        }
+
+        private bool RunSearch(out string error) {
+            error = null;
+            if (!HasProject) {
+                error = "No project is open.";
+                return false;
+            }
+
+            int match = Controller.FindNext(LastSearchText, SelectedLine,
+                LastSearchMatchCase, out bool wrapped);
+            if (match < 0) {
+                error = "Not found: " + LastSearchText;
+                return false;
+            }
+
+            SelectedLine = match;
+            if (wrapped) {
+                error = null;       // wrapped around; still a successful find
+            }
+            return true;
+        }
+
         public bool Undo(out string error) {
             return Controller.Undo(out error);
         }
