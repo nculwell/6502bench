@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>$(PortTargetFramework)</TargetFramework>
     <RootNamespace>SourceGen.Tests</RootNamespace>
     <AssemblyName>SourceGen.Tests</AssemblyName>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,13 +13,22 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- GenTest locates its data relative to the RuntimeData directory, so everything it
-         needs must sit next to the executable. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The engine locates its data relative to the RuntimeData directory, and the
+         regression tests read the sample projects from disk. -->
     <Content Include="..\SourceGen\RuntimeData\**\*"
              Link="RuntimeData\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\SourceGen\SGTestData\**\*"
              Link="SGTestData\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\SourceGen\Examples\**\*"
+             Link="Examples\%(RecursiveDir)%(Filename)%(Extension)"
              CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

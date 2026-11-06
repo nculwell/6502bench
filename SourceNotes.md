@@ -62,3 +62,64 @@ Steps:
 
 Version numbers should follow the semantic versioning scheme: v1.2.3,
 v1.2.3-dev1, etc.
+
+
+## .NET 10 / Linux Port ##
+
+The application is being moved off .NET Framework and WPF.  The current layout is:
+
+| Project | Contents |
+| --- | --- |
+| `Asm65` | CPU definitions, opcode table, formatting helpers |
+| `CommonUtil` | Shared utilities (CRC-32, range sets, address map, shell) |
+| `PluginCommon` | Extension-script interfaces shared with plugins |
+| `SourceGen/RuntimeData` | System definitions and symbol files |
+| `SourceGen.Engine` | Everything headless: project model, analyzer, code generators, extension-script host |
+| `SourceGen.App` | Avalonia 11 desktop application |
+| `SourceGen.Tests` | xunit test suite |
+
+The WPF projects (`SourceGen/WpfGui`, `CommonWPF`, `MakeDist`) are being replaced by
+`SourceGen.App` and are kept only as the reference for the remaining UI work.  They are
+no longer in the build.
+
+Build and test:
+
+    dotnet build SourceGen.App/SourceGen.App.csproj
+    dotnet test SourceGen.Tests/SourceGen.Tests.csproj
+
+`WorkBench.sln` has not been updated for the new projects yet; build per-project.
+
+### Running the assembler regression step ###
+
+`SourceGen.Tests` drives the same generate-and-assemble suite as the GUI's "Source
+Generation Tests" window.  Generating sources always runs; the assemble-and-compare step
+only runs for assemblers that are configured.  The tests discover cross-assemblers from
+the environment so no machine-specific paths are compiled in:
+
+    SOURCEGEN_CC65_PATH=/path/to/cc65/bin dotnet test SourceGen.Tests/SourceGen.Tests.csproj
+
+The variable may name either the directory containing `cl65` or the executable itself.
+Other assemblers can be added the same way as support is wired up.
+
+### Known upstream issues (not port regressions) ###
+
+Assembling with cc65 V2.19 (`ca65`/`cl65`) surfaces two problems that exist in the
+current generated output, not in the port.  They are reproducible by assembling the
+checked-in `SGTestData/Expected` sources directly, and the test suite classifies them as
+toolchain disagreements so they show up as a NOTE rather than a failure:
+
+1. **W65C02 projects emit the wrong CPU directive for cc65.**  The generator writes
+   `.setcpu "65C02"`, but `wai` and `stp` (and WDC extensions generally) require
+   `.setcpu "w65c02"`.  Modern `ca65` therefore rejects the source.  Verified: changing
+   that one line to `.setcpu "w65c02"` makes the affected cases assemble cleanly.
+   Affects test cases `10003-allops-value-W65C02` and `10013-allops-zero-W65C02`.
+   Tracked as a known issue; deliberately not changed yet because it alters generated
+   output and the reference fixtures.
+
+2. **All-ops fixtures exercise the 6502 indirect-JMP page-wrap bug.**  Case
+   `10000-allops-value-6502` contains `jmp ($feff)`, which newer `ca65` rejects with
+   "jmp (abs) across page border" instead of silently wrapping.  This is assembler
+   version drift over a deliberate edge case, not a generator defect.
+
+Note that comparing generated output against the reference `Expected` sources proves
+fidelity to upstream behaviour, not correctness: issue 1 passes that comparison.
