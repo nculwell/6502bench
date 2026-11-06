@@ -1,0 +1,27 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SourceGen.Views.AssemblerPickerDialog"
+        Title="Generate Assembly"
+        Width="320"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Text="Generate assembly source for:" TextWrapping="Wrap" />
+
+    <StackPanel Spacing="4">
+      <RadioButton Name="tass64Option" GroupName="asm" Content="64tass" IsChecked="True" />
+      <RadioButton Name="acmeOption" GroupName="asm" Content="ACME" />
+      <RadioButton Name="cc65Option" GroupName="asm" Content="cc65" />
+      <RadioButton Name="merlinOption" GroupName="asm" Content="Merlin 32" />
+    </StackPanel>
+
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Name="okButton" Content="Choose Folder..." IsDefault="True" MinWidth="110" />
+      <Button Name="cancelButton" Content="Cancel" IsCancel="True" MinWidth="84" />
+    </StackPanel>
+  </StackPanel>
+
+</Window>

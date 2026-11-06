@@ -19,7 +19,9 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 
+using SourceGen.AsmGen;
 using SourceGen.Commands;
 using SourceGen.Services;
 
@@ -91,6 +93,11 @@ namespace SourceGen.Views {
         public RelayCommand AboutCommand { get; private set; }
 
         /// <summary>
+        /// Backing state for the workspace.
+        /// </summary>
+        private readonly AppController mController = new AppController();
+
+        /// <summary>
         /// Names of commands whose behaviour still lives in the not-yet-ported MainController.
         /// They stay visible but report their status instead of silently doing nothing.
         /// </summary>
@@ -123,10 +130,10 @@ namespace SourceGen.Views {
 
             // ---- commands blocked on the MainController port ----
             NewProjectCommand = Pending("New Project");
-            OpenCommand = Pending("Open");
+            OpenCommand = new RelayCommand(() => _ = OpenProjectAsync());
             SaveCommand = Pending("Save");
             SaveAsCommand = Pending("Save As");
-            CloseCommand = Pending("Close Project");
+            CloseCommand = new RelayCommand(CloseProject);
             UndoCommand = Pending("Undo");
             RedoCommand = Pending("Redo");
             FindCommand = Pending("Find");
@@ -139,7 +146,7 @@ namespace SourceGen.Views {
             NavigateForwardCommand = Pending("Navigate Forward");
             NavigateBackwardCommand = Pending("Navigate Backward");
             ViewAddressMapCommand = Pending("View Address Map");
-            AssembleCommand = Pending("Assemble");
+            AssembleCommand = new RelayCommand(() => _ = GenerateAssemblyAsync());
             ExportCommand = Pending("Export");
             GenerateLabelsCommand = Pending("Generate Labels");
             ReloadExternalFilesCommand = Pending("Reload External Files");
@@ -214,6 +221,88 @@ namespace SourceGen.Views {
                 }
             }
             await Ui.CopyTextAsync(this, sb.ToString());
+        }
+
+        // ---- project lifecycle ----
+
+        private async Task OpenProjectAsync() {
+            FilePickerFileType projectType = new FilePickerFileType("SourceGen project") {
+                Patterns = new string[] { "*" + ProjectFile.FILENAME_EXT },
+            };
+            string path = await FilePickers.OpenFileAsync(this, "Open Project",
+                new FilePickerFileType[] { projectType });
+            if (string.IsNullOrEmpty(path)) {
+                return;
+            }
+
+            if (!mController.OpenProject(path, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Unable to open project");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        /// <summary>
+        /// Generates assembly source for the open project.  Choosing the dialect and the
+        /// output folder is all the prompting there is; running the cross-assembler to
+        /// verify the result is not done here.
+        /// </summary>
+        private async Task GenerateAssemblyAsync() {
+            if (!mController.HasProject) {
+                await Dialogs.ShowAsync(this, "Open a project first.", "Generate Assembly");
+                return;
+            }
+
+            AssemblerPickerDialog picker = new AssemblerPickerDialog();
+            AssemblerInfo.Id asmId = await picker.ShowDialog<AssemblerInfo.Id>(this);
+            if (asmId == AssemblerInfo.Id.Unknown) {
+                return;
+            }
+
+            string outputDir = await FilePickers.OpenFolderAsync(this, "Select output folder");
+            if (string.IsNullOrEmpty(outputDir)) {
+                return;
+            }
+
+            if (!mController.GenerateAssembly(asmId, outputDir, out List<string> files,
+                    out string error)) {
+                await Dialogs.ShowAsync(this, error, "Generate Assembly");
+                return;
+            }
+
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            sb.AppendLine("Generated " + files.Count + " file(s):");
+            foreach (string path in files) {
+                sb.AppendLine("  " + System.IO.Path.GetFileName(path));
+            }
+            await Dialogs.ShowAsync(this, sb.ToString(), "Generate Assembly");
+            this.FindControl<TextBlock>("statusBarText").Text = mController.StatusText;
+        }
+
+        private void CloseProject() {
+            mController.CloseProject();
+            RefreshFromController();
+        }
+
+        /// <summary>
+        /// Pushes controller state into the view.  The panes are bound by hand rather than
+        /// through DataContext because the code list is an IList of engine objects.
+        /// </summary>
+        private void RefreshFromController() {
+            bool hasProject = mController.HasProject;
+
+            this.FindControl<Grid>("launchPanel").IsVisible = !hasProject;
+            this.FindControl<Grid>("codeListGrid").IsVisible = hasProject;
+
+            this.FindControl<ListBox>("codeListView").ItemsSource = mController.CodeList;
+            this.FindControl<DataGrid>("messageGrid").ItemsSource = mController.Messages;
+            this.FindControl<DataGrid>("symbolsGrid").ItemsSource = mController.Symbols;
+            this.FindControl<DataGrid>("notesGrid").ItemsSource = mController.Notes;
+
+            this.FindControl<DockPanel>("messageListPanel").IsVisible =
+                hasProject && mController.Messages.Count > 0;
+            this.FindControl<TextBlock>("statusBarText").Text = mController.StatusText;
+            this.FindControl<Button>("messageStatusButton").Content = mController.MessageSummary;
         }
 
         // ---- event handlers referenced from XAML ----

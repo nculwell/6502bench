@@ -21,6 +21,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The application locates its data files (system definitions, symbol files, extension
+         scripts, help) in a RuntimeData directory beside the executable, so it must be part
+         of the build and publish output. -->
+    <Content Include="..\SourceGen\RuntimeData\**\*"
+             Exclude="..\SourceGen\RuntimeData\bin\**;..\SourceGen\RuntimeData\obj\**">
+      <Link>RuntimeData\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The string table stays owned by the engine so Res.Strings and the UI read the same
          file; it is pulled in here as an Avalonia resource dictionary. -->
     <AvaloniaResource Include="..\SourceGen.Engine\Res\Strings.xaml">

@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/SourceGen/">
+    <Project Path="SourceGen/RuntimeData/RuntimeData.csproj" />
+  </Folder>
+  <Project Path="Asm65/Asm65.csproj" />
+  <Project Path="CommonUtil/CommonUtil.csproj" />
+  <Project Path="PluginCommon/PluginCommon.csproj" />
+  <Project Path="SourceGen.App/SourceGen.App.csproj" />
+  <Project Path="SourceGen.Engine/SourceGen.Engine.csproj" />
+  <Project Path="SourceGen.Tests/SourceGen.Tests.csproj" />
+</Solution>

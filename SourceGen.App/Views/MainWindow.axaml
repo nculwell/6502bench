@@ -38,7 +38,7 @@
           <MenuItem Header="(none)" IsEnabled="False" />
         </MenuItem>
         <Separator />
-        <MenuItem Header="_Assemble" Command="{Binding AssembleCommand}" />
+        <MenuItem Header="_Generate Assembly..." Command="{Binding AssembleCommand}" />
         <MenuItem Header="_Export..." Command="{Binding ExportCommand}" />
         <MenuItem Header="Generate _Labels..." Command="{Binding GenerateLabelsCommand}" />
         <MenuItem Header="_Reload External Files" Command="{Binding ReloadExternalFilesCommand}" />

@@ -84,10 +84,21 @@ no longer in the build.
 
 Build and test:
 
-    dotnet build SourceGen.App/SourceGen.App.csproj
+    dotnet build WorkBench.slnx
     dotnet test SourceGen.Tests/SourceGen.Tests.csproj
 
-`WorkBench.sln` has not been updated for the new projects yet; build per-project.
+`WorkBench.slnx` is the solution for the ported tree (the .NET 10 SDK writes the XML
+solution format).  The original `WorkBench.sln` referenced the WPF projects, which no
+longer build, and has been replaced.
+
+To produce a distributable build:
+
+    ./MakeDist/publish.sh linux-x64 Release      # framework-dependent
+    ./MakeDist/publish.sh linux-x64 Release --self-contained
+
+This replaces the old MakeDist WPF utility.  `RuntimeData` is copied as part of the
+project, and the script adds the licence, notice and help pages; the result is directly
+runnable (`DIST_Release/<rid>/SourceGen`).
 
 ### Running the assembler regression step ###
 
@@ -170,3 +181,18 @@ With all four assemblers installed, the suite runs 228 assemble-and-compare pair
 ACME and 64tass reproduce every case exactly, so they are the cleanest evidence that the
 generated sources are correct.  The cc65 and Merlin 32 shortfalls are the tool-version
 issues described above; the suite names each one rather than skipping silently.
+
+
+## What is and is not ported ##
+
+Working today: the engine (analysis, code generation, project files, extension scripts)
+and a GUI that can open a project and display it.  `AppController` loads a project, runs
+the analyzer, and fills the code, symbol, message and note panes; that path is covered by
+`AppControllerTests`, which opens a real example project and asserts a disassembly is
+produced.  This is verified headlessly because the CI container has no display.
+
+Not yet ported: the editing commands.  Undo/redo, the operand/label/comment editors, the
+tools (hex dump, charts, file slicer), the visualization editors and the export and
+assemble dialogs are still only present in the WPF sources, and the corresponding menu
+commands report "Not Yet Ported".  Until those land, the Avalonia application is a viewer,
+not an editor.

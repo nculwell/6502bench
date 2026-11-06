@@ -142,8 +142,19 @@ download the latest version
 The framework requires Win7 SP1, Win8.1, Win10 updated through at least the
 Anniversary Update (1607), or Win11.
 
-SourceGen does not run natively on Linux or Mac OS.  It is reported
-to work with recent versions (v9+) of the [Wine emulation layer](https://winehq.org/).
+SourceGen does not run natively on Linux or Mac OS with the released binaries.  It is
+reported to work with recent versions (v9+) of the
+[Wine emulation layer](https://winehq.org/).
+
+A cross-platform port to .NET 10 and Avalonia is in progress in this tree.  The engine is
+ported and tested; the GUI can open a project and display the disassembly, but editing is
+not wired up yet.  To build it:
+
+    dotnet build WorkBench.slnx
+    dotnet test SourceGen.Tests/SourceGen.Tests.csproj
+    ./MakeDist/publish.sh linux-x64 Release
+
+See [the source notes](SourceNotes.md) for what is and is not ported.
 
 (SourceGen versions 1.0 and 1.1 used the WinForms API, which has been
 implemented for [Mono](https://www.mono-project.com/), but after
