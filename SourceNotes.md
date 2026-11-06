@@ -191,15 +191,18 @@ the analyzer, and fills the code, symbol, message and note panes; that path is c
 `AppControllerTests`, which opens a real example project and asserts a disassembly is
 produced.  This is verified headlessly because the CI container has no display.
 
-Editing supported by both front ends: labels, end-of-line comments, multi-line (long)
-comments, undo/redo, save, and listing search (find / find next, with a match-case option).
-Long comments are stored and rendered through the same MultiLineComment type the original
-application uses, so they round-trip with existing project files.
+Supported by both front ends: labels, end-of-line comments, multi-line (long) comments,
+notes, undo/redo, save, listing search (find / find next / find previous with a match-case
+option), HTML export, VICE label-file generation, and assembly-source generation for all
+four cross-assemblers.  Long comments and notes use the same MultiLineComment type the
+original application uses, so they round-trip with existing project files.
 
-Not yet ported: the remaining editors and tools.  Operand formatting, notes, project
-properties, the tools (hex dump, charts, file slicer), the visualization editors and the
-export/assemble dialogs are still only present in the WPF sources, and the corresponding
-menu commands report "Not Yet Ported".
+Not yet ported: operand formatting, project properties, the tools (hex dump, instruction
+and ASCII charts, file slicer/concatenator), the visualization editors and the
+assemble-and-verify dialog.  Those remain only in the WPF sources, and the corresponding
+menu commands report "Not Yet Ported".  Notes and visualizations are not included in HTML
+export from the ported front ends; the exporter is invoked with image generation off,
+because rendering needs a platform that headless environments do not have.
 
 
 ## Terminal UI ##
@@ -212,8 +215,9 @@ generate assembly source.
     dotnet run --project SourceGen.Tui/SourceGen.Tui.csproj [path/to/project.dis65]
 
 Keys: arrows/PgUp/PgDn/Home/End move, Ctrl+L edits the label, Ctrl+; the comment, Ctrl+K
-the multi-line comment, Ctrl+F finds (F3 repeats), Ctrl+Z/Y undo/redo, Ctrl+S saves, Ctrl+O
-opens, Ctrl+G generates assembly, Ctrl+Q quits.  The menus expose the same commands.
+the multi-line comment, Ctrl+N the note, Ctrl+F finds (F3 forward, Shift+F3 backward),
+Ctrl+Z/Y undo/redo, Ctrl+S saves, Ctrl+O opens, Ctrl+G generates assembly, Ctrl+Q quits.
+Export HTML and Generate Labels are on the File menu.  The menus expose the same commands.
 
 Design note: all behaviour lives in `TuiModel`, which knows nothing about terminals.  The
 Terminal.Gui layer in `Program.cs` only wires widgets to it.  That keeps the TUI testable

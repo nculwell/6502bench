@@ -149,8 +149,10 @@ namespace SourceGen.Views {
             NavigateBackwardCommand = Pending("Navigate Backward");
             ViewAddressMapCommand = Pending("View Address Map");
             AssembleCommand = new RelayCommand(() => _ = GenerateAssemblyAsync());
-            ExportCommand = Pending("Export");
-            GenerateLabelsCommand = Pending("Generate Labels");
+            ExportCommand = new RelayCommand(() => _ = ExportHtmlAsync(),
+                () => mController.HasProject);
+            GenerateLabelsCommand = new RelayCommand(() => _ = GenerateLabelsAsync(),
+                () => mController.HasProject);
             ReloadExternalFilesCommand = Pending("Reload External Files");
             EditHeaderCommentCommand = Pending("Edit Header Comment");
             ProjectPropertiesCommand = Pending("Project Properties");
@@ -162,7 +164,8 @@ namespace SourceGen.Views {
                 () => GetSelectedOffset() >= 0);
             EditLongCommentCommand = new RelayCommand(() => _ = EditLongCommentAsync(),
                 () => GetSelectedOffset() >= 0);
-            EditNoteCommand = Pending("Edit Note");
+            EditNoteCommand = new RelayCommand(() => _ = EditNoteAsync(),
+                () => GetSelectedOffset() >= 0);
             EditAddressCommand = Pending("Edit Address");
             EditStatusFlagsCommand = Pending("Edit Status Flags");
             EditDataBankCommand = Pending("Edit Data Bank");
@@ -402,6 +405,62 @@ namespace SourceGen.Views {
             RefreshFromController();
         }
 
+        private async Task EditNoteAsync() {
+            int offset = GetSelectedOffset();
+            if (offset < 0) {
+                await Dialogs.ShowAsync(this, "Select a line first.", "Edit Note");
+                return;
+            }
+
+            EditLongCommentDialog dlg = new EditLongCommentDialog();
+            dlg.Configure(DescribeOffset(offset), mController.GetNoteAt(offset), "Note");
+            if (await dlg.ShowDialog<bool>(this) != true) {
+                return;
+            }
+
+            if (!mController.SetNote(offset, dlg.CommentText, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Edit Note");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        private async Task ExportHtmlAsync() {
+            FilePickerFileType htmlType = new FilePickerFileType("HTML file") {
+                Patterns = new string[] { "*.html" },
+            };
+            string path = await FilePickers.SaveFileAsync(this, "Export HTML Listing",
+                "listing.html", new FilePickerFileType[] { htmlType });
+            if (string.IsNullOrEmpty(path)) {
+                return;
+            }
+
+            if (!mController.ExportHtml(path, true, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Export HTML");
+                return;
+            }
+            await Dialogs.ShowAsync(this, "Wrote " + path, "Export HTML");
+            RefreshFromController();
+        }
+
+        private async Task GenerateLabelsAsync() {
+            FilePickerFileType labelType = new FilePickerFileType("VICE label file") {
+                Patterns = new string[] { "*.sym65" },
+            };
+            string path = await FilePickers.SaveFileAsync(this, "Generate Labels",
+                "labels.sym65", new FilePickerFileType[] { labelType });
+            if (string.IsNullOrEmpty(path)) {
+                return;
+            }
+
+            if (!mController.GenerateLabelFile(path, false, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Generate Labels");
+                return;
+            }
+            await Dialogs.ShowAsync(this, "Wrote " + path, "Generate Labels");
+            RefreshFromController();
+        }
+
         private async Task UndoAsync() {
             if (!mController.Undo(out string error)) {
                 await Dialogs.ShowAsync(this, error, "Undo");
@@ -512,6 +571,9 @@ namespace SourceGen.Views {
             FindNextCommand?.RaiseCanExecuteChanged();
             FindPreviousCommand?.RaiseCanExecuteChanged();
             EditLongCommentCommand?.RaiseCanExecuteChanged();
+            EditNoteCommand?.RaiseCanExecuteChanged();
+            ExportCommand?.RaiseCanExecuteChanged();
+            GenerateLabelsCommand?.RaiseCanExecuteChanged();
             UndoCommand?.RaiseCanExecuteChanged();
             RedoCommand?.RaiseCanExecuteChanged();
             EditLabelCommand?.RaiseCanExecuteChanged();

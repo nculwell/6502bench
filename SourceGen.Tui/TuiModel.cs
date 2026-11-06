@@ -325,6 +325,49 @@ namespace SourceGen.Tui {
             return ok;
         }
 
+        // ---- notes ----
+
+        /// <summary>
+        /// Note attached to the selected line.
+        /// </summary>
+        public string GetSelectedNote() {
+            int offset = SelectedOffset;
+            return offset < 0 ? string.Empty : Controller.GetNoteAt(offset);
+        }
+
+        /// <summary>
+        /// Sets or clears the note on the selected line.
+        /// </summary>
+        public bool SetSelectedNote(string text, out string error) {
+            int offset = SelectedOffset;
+            if (offset < 0) {
+                error = "No line is selected.";
+                return false;
+            }
+            bool ok = Controller.SetNote(offset, text, out error);
+            if (ok) {
+                RefreshSelection();
+            }
+            return ok;
+        }
+
+        // ---- output ----
+
+        /// <summary>
+        /// Writes an HTML listing.
+        /// </summary>
+        public bool ExportHtml(string pathName, out string error) {
+            return Controller.ExportHtml(pathName, true, out error);
+        }
+
+        /// <summary>
+        /// Writes a VICE label file.
+        /// </summary>
+        public bool GenerateLabels(string pathName, bool includeAutoLabels,
+                out string error) {
+            return Controller.GenerateLabelFile(pathName, includeAutoLabels, out error);
+        }
+
         // ---- search ----
 
         /// <summary>

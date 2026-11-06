@@ -44,8 +44,8 @@ namespace SourceGen.Views {
         /// <summary>
         /// Pre-fills the editor.
         /// </summary>
-        public void Configure(string location, string text) {
-            Title = "Edit Long Comment -- " + location;
+        public void Configure(string location, string text, string kind = "Long Comment") {
+            Title = "Edit " + kind + " -- " + location;
             TextBox box = this.FindControl<TextBox>("commentBox");
             box.Text = text ?? string.Empty;
             Dispatcher.UIThread.Post(() => box.Focus());

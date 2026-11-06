@@ -638,6 +638,130 @@ namespace SourceGen {
             return -1;
         }
 
+        // ---- notes ----
+
+        /// <summary>
+        /// Note text at an offset, or empty string if none.  Notes are for the analyst and
+        /// are never emitted into generated output.
+        /// </summary>
+        public string GetNoteAt(int offset) {
+            if (mProject == null) {
+                return string.Empty;
+            }
+            if (mProject.Notes.TryGetValue(offset, out MultiLineComment note)) {
+                return note.Text ?? string.Empty;
+            }
+            return string.Empty;
+        }
+
+        /// <summary>
+        /// Sets or clears the note at an offset.
+        /// </summary>
+        public bool SetNote(int offset, string text, out string error) {
+            error = null;
+            if (mProject == null) {
+                error = "No project is open.";
+                return false;
+            }
+            if (offset < 0 || offset > mProject.FileDataLength) {
+                error = "Offset is outside the file.";
+                return false;
+            }
+
+            mProject.Notes.TryGetValue(offset, out MultiLineComment oldNote);
+
+            MultiLineComment newNote = null;
+            if (!string.IsNullOrEmpty(text)) {
+                newNote = new MultiLineComment(text);
+            }
+
+            if (oldNote == newNote) {
+                return true;
+            }
+
+            UndoableChange change = UndoableChange.CreateNoteChange(offset, oldNote, newNote);
+            return ApplyChangeSet(new ChangeSet(change), "note", out error);
+        }
+
+        // ---- output ----
+
+        /// <summary>
+        /// Writes the listing to an HTML file next to the given path.
+        ///
+        /// Images are not generated: visualization export needs a rendering platform, which
+        /// is not available in every environment (notably headless ones).
+        /// </summary>
+        /// <param name="pathName">Full path of the .html file to write.</param>
+        /// <param name="overwriteCss">Replace an existing stylesheet.</param>
+        /// <param name="error">On failure, a message describing the problem.</param>
+        public bool ExportHtml(string pathName, bool overwriteCss, out string error) {
+            error = null;
+            if (mProject == null) {
+                error = "No project is open.";
+                return false;
+            }
+            if (string.IsNullOrEmpty(pathName)) {
+                error = "No output path was given.";
+                return false;
+            }
+
+            try {
+                Exporter exporter = new Exporter(mProject, mLineListGen, mFormatter,
+                    Exporter.ActiveColumnFlags.ALL, new int[] { 16, 6, 16, 80 });
+                exporter.IncludeNotes = false;
+                exporter.GenerateImageFiles = false;
+
+                BackgroundWorker worker = new BackgroundWorker();
+                worker.WorkerReportsProgress = true;
+                if (!exporter.OutputToHtml(worker, pathName, overwriteCss)) {
+                    error = string.IsNullOrEmpty(exporter.LastError)
+                        ? "HTML export failed." : exporter.LastError;
+                    return false;
+                }
+
+                StatusText = "Exported " + Path.GetFileName(pathName);
+                OnPropertyChanged(nameof(HasProject));
+                return true;
+            } catch (Exception ex) {
+                error = "HTML export failed: " + ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Writes a VICE-style label file (.sym65) for the open project.
+        /// </summary>
+        /// <param name="pathName">Full path of the label file to write.</param>
+        /// <param name="includeAutoLabels">Include generated labels as well as user ones.</param>
+        /// <param name="error">On failure, a message describing the problem.</param>
+        public bool GenerateLabelFile(string pathName, bool includeAutoLabels,
+                out string error) {
+            error = null;
+            if (mProject == null) {
+                error = "No project is open.";
+                return false;
+            }
+            if (string.IsNullOrEmpty(pathName)) {
+                error = "No output path was given.";
+                return false;
+            }
+
+            try {
+                LabelFileGenerator gen = new LabelFileGenerator(mProject,
+                    LabelFileGenerator.LabelFmt.VICE, includeAutoLabels);
+                using (StreamWriter sw = new StreamWriter(pathName, false,
+                        new System.Text.UTF8Encoding(false))) {
+                    gen.Generate(sw);
+                }
+                StatusText = "Wrote labels to " + Path.GetFileName(pathName);
+                OnPropertyChanged(nameof(HasProject));
+                return true;
+            } catch (Exception ex) {
+                error = "Unable to write label file: " + ex.Message;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Writes the project back to its .dis65 file.
         /// </summary>

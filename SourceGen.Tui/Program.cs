@@ -72,6 +72,8 @@ namespace SourceGen.Tui {
                     new MenuItem("_Open...", "Ctrl+O", () => PromptOpen()),
                     new MenuItem("_Save", "Ctrl+S", () => Save()),
                     new MenuItem("_Generate Assembly...", "Ctrl+G", () => GenerateAssembly()),
+                    new MenuItem("Generate _Labels...", "", () => GenerateLabels()),
+                    new MenuItem("E_xport HTML...", "", () => ExportHtml()),
                     new MenuItem("_Close", "", () => CloseProject()),
                     null,
                     new MenuItem("_Quit", "Ctrl+Q", () => Application.RequestStop()),
@@ -83,6 +85,7 @@ namespace SourceGen.Tui {
                     new MenuItem("Edit _Label...", "Ctrl+L", () => EditLabel()),
                     new MenuItem("Edit _Comment...", "Ctrl+;", () => EditComment()),
                     new MenuItem("Edit _Long Comment...", "Ctrl+K", () => EditLongComment()),
+                    new MenuItem("Edit _Note...", "Ctrl+N", () => EditNote()),
                     null,
                     new MenuItem("_Find...", "Ctrl+F", () => Find(forward: true)),
                     new MenuItem("Find _Next", "F3", () => FindNext()),
@@ -196,6 +199,10 @@ namespace SourceGen.Tui {
                         break;
                     case Key.k when ctrl:
                         EditLongComment();
+                        args.Handled = true;
+                        break;
+                    case Key.n when ctrl:
+                        EditNote();
                         args.Handled = true;
                         break;
                     case Key.f when ctrl:
@@ -443,6 +450,90 @@ namespace SourceGen.Tui {
             RefreshView();
         }
 
+        /// <summary>
+        /// Edits the note attached to the selected line.
+        /// </summary>
+        private static void EditNote() {
+            if (!sModel.HasProject || sModel.SelectedLine < 0) {
+                MessageBox.ErrorQuery("Edit Note", "Select a line first.", "OK");
+                return;
+            }
+
+            Dialog dlg = new Dialog("Edit Note", 76, 20);
+            dlg.Add(new Label("Note text (empty removes it). Notes are not written to output:")
+                { X = 1, Y = 1 });
+            TextView view = new TextView() {
+                X = 1,
+                Y = 2,
+                Width = Dim.Fill(2),
+                Height = Dim.Fill(3),
+                Text = sModel.GetSelectedNote(),
+            };
+            dlg.Add(view);
+
+            bool accepted = false;
+            string text = null;
+            Button ok = new Button("OK", true);
+            ok.Clicked += () => {
+                accepted = true;
+                text = view.Text?.ToString() ?? string.Empty;
+                Application.RequestStop();
+            };
+            dlg.AddButton(ok);
+            dlg.AddButton(new Button("Cancel"));
+
+            view.SetFocus();
+            Application.Run(dlg);
+
+            if (!accepted) {
+                return;
+            }
+            if (!sModel.SetSelectedNote(text, out string error)) {
+                MessageBox.ErrorQuery("Edit Note", error ?? "Unknown error", "OK");
+            }
+            RefreshView();
+        }
+
+        /// <summary>
+        /// Writes a VICE label file for the open project.
+        /// </summary>
+        private static void GenerateLabels() {
+            if (!sModel.HasProject) {
+                MessageBox.ErrorQuery("Generate Labels", "No project is open.", "OK");
+                return;
+            }
+            string suggestion = Path.Combine(Directory.GetCurrentDirectory(), "labels.sym65");
+            if (!PromptText("Generate Labels", "Output path:", suggestion, out string path)) {
+                return;
+            }
+            if (!sModel.GenerateLabels(path, false, out string error)) {
+                MessageBox.ErrorQuery("Generate Labels", error ?? "Unknown error", "OK");
+                return;
+            }
+            MessageBox.Query("Generate Labels", "Wrote " + path, "OK");
+            RefreshView();
+        }
+
+        /// <summary>
+        /// Writes an HTML listing for the open project.
+        /// </summary>
+        private static void ExportHtml() {
+            if (!sModel.HasProject) {
+                MessageBox.ErrorQuery("Export HTML", "No project is open.", "OK");
+                return;
+            }
+            string suggestion = Path.Combine(Directory.GetCurrentDirectory(), "listing.html");
+            if (!PromptText("Export HTML", "Output path (.html):", suggestion, out string path)) {
+                return;
+            }
+            if (!sModel.ExportHtml(path, out string error)) {
+                MessageBox.ErrorQuery("Export HTML", error ?? "Unknown error", "OK");
+                return;
+            }
+            MessageBox.Query("Export HTML", "Wrote " + path, "OK");
+            RefreshView();
+        }
+
         private static void GenerateAssembly() {
             if (!sModel.HasProject) {
                 MessageBox.ErrorQuery("Generate Assembly", "No project is open.", "OK");
@@ -508,7 +599,8 @@ namespace SourceGen.Tui {
         private static void ShowKeys() {
             MessageBox.Query("Keys",
                 "Up/Down/PgUp/PgDn/Home/End  move  |  Ctrl+L label  |  Ctrl+; comment\n" +
-                "Ctrl+K long comment  |  Ctrl+F find  |  F3 / Shift+F3 next / previous\n" +
+                "Ctrl+K long comment  |  Ctrl+N note\n" +
+                "Ctrl+F find  |  F3 / Shift+F3 next / previous\n" +
                 "Ctrl+Z undo  |  Ctrl+Y redo  |  Ctrl+S save  |  Ctrl+O open\n" +
                 "Ctrl+G generate assembly  |  Ctrl+Q quit",
                 "OK");
