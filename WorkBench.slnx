@@ -8,4 +8,5 @@
   <Project Path="SourceGen.App/SourceGen.App.csproj" />
   <Project Path="SourceGen.Engine/SourceGen.Engine.csproj" />
   <Project Path="SourceGen.Tests/SourceGen.Tests.csproj" />
+  <Project Path="SourceGen.Tui/SourceGen.Tui.csproj" />
 </Solution>

@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(PortTargetFramework)</TargetFramework>
+    <RootNamespace>SourceGen.Tui</RootNamespace>
+    <AssemblyName>SourceGen.Tui</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SourceGen.Engine\SourceGen.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Terminal.Gui provides the ncurses-backed driver on Unix (CursesDriver) and a
+         Windows console driver; the same UI code runs on both. -->
+    <PackageReference Include="Terminal.Gui" Version="1.17.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The engine locates its data files (system definitions, symbol files, extension
+         scripts) in a RuntimeData directory beside the executable. -->
+    <Content Include="..\SourceGen\RuntimeData\**\*"
+             Exclude="..\SourceGen\RuntimeData\bin\**;..\SourceGen\RuntimeData\obj\**">
+      <Link>RuntimeData\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

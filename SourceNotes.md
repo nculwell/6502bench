@@ -196,3 +196,25 @@ tools (hex dump, charts, file slicer), the visualization editors and the export 
 assemble dialogs are still only present in the WPF sources, and the corresponding menu
 commands report "Not Yet Ported".  Until those land, the Avalonia application is a viewer,
 not an editor.
+
+
+## Terminal UI ##
+
+`SourceGen.Tui` is a terminal front end for the same engine, built on Terminal.Gui (which
+uses the ncurses-backed driver on Unix).  It covers what the graphical application does
+today: open a project, browse the listing, edit labels and comments, undo/redo, save, and
+generate assembly source.
+
+    dotnet run --project SourceGen.Tui/SourceGen.Tui.csproj [path/to/project.dis65]
+
+Keys: arrows/PgUp/PgDn/Home/End move, Ctrl+L edits the label, Ctrl+; the comment, Ctrl+Z/Y
+undo/redo, Ctrl+S saves, Ctrl+O opens, Ctrl+G generates assembly, Ctrl+Q quits.  The menus
+expose the same commands.
+
+Design note: all behaviour lives in `TuiModel`, which knows nothing about terminals.  The
+Terminal.Gui layer in `Program.cs` only wires widgets to it.  That keeps the TUI testable
+without a TTY -- `TuiModelTests` drives the model and asserts on the exact text the screen
+would show, including column padding, scroll-to-selection and edit results.
+
+Because the terminal has no native file dialog, the TUI prompts for paths as text, and it
+takes an optional project path on the command line.

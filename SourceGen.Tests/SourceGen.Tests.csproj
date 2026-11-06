@@ -10,6 +10,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SourceGen.Engine\SourceGen.Engine.csproj" />
+    <!-- The terminal UI's presentation logic lives in its own project; it has no terminal
+         dependency, so it can be exercised directly. -->
+    <ProjectReference Include="..\SourceGen.Tui\SourceGen.Tui.csproj" />
   </ItemGroup>
 
   <ItemGroup>

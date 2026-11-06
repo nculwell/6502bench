@@ -154,6 +154,10 @@ not wired up yet.  To build it:
     dotnet test SourceGen.Tests/SourceGen.Tests.csproj
     ./MakeDist/publish.sh linux-x64 Release
 
+There is also a terminal front end, which covers the same ground as the graphical one:
+
+    dotnet run --project SourceGen.Tui/SourceGen.Tui.csproj [path/to/project.dis65]
+
 See [the source notes](SourceNotes.md) for what is and is not ported.
 
 (SourceGen versions 1.0 and 1.1 used the WinForms API, which has been
