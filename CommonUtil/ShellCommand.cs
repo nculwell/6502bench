@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2018 faddenSoft
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -196,26 +196,27 @@ namespace CommonUtil {
         /// the Registry).
         /// </summary>
         public static void OpenUrl(string url) {
-            // See https://stackoverflow.com/a/43232486/294248
-            // The idea is to see if Start() will just do it, and if it doesn't then fall
-            // back on something platform-specific.  I don't know if this is actually
-            // necessary -- I suspect Mono will do the right thing.
-            try {
-                Process.Start(url);
-            } catch {
-                // hack because of this: https://github.com/dotnet/corefx/issues/10361
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
-                    url = url.Replace("&", "^&");
-                    Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") {
-                        CreateNoWindow = true
-                    });
-                } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
-                    Process.Start("xdg-open", url);
-                } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
-                    Process.Start("open", url);
-                } else {
-                    throw;
+            // Dispatch on the platform rather than relying on Process.Start(string) to work
+            // or throw: on Windows it uses ShellExecute, but on Linux and macOS there is no
+            // shell association, so it fails with a Win32Exception.  See
+            // https://github.com/dotnet/corefx/issues/10361
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) {
+                try {
+                    Process.Start(url);
+                    return;
+                } catch {
+                    // Fall back to the shell, which copes better with URLs.
                 }
+                url = url.Replace("&", "^&");
+                Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") {
+                    CreateNoWindow = true
+                });
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) {
+                Process.Start("xdg-open", url);
+            } else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) {
+                Process.Start("open", url);
+            } else {
+                throw new PlatformNotSupportedException("Don't know how to open a URL here.");
             }
         }
     }

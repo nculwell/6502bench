@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>$(PortTargetFramework)</TargetFramework>
+    <RootNamespace>SourceGen.Tests</RootNamespace>
+    <AssemblyName>SourceGen.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SourceGen.Engine\SourceGen.Engine.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- GenTest locates its data relative to the RuntimeData directory, so everything it
+         needs must sit next to the executable. -->
+    <Content Include="..\SourceGen\RuntimeData\**\*"
+             Link="RuntimeData\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\SourceGen\SGTestData\**\*"
+             Link="SGTestData\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

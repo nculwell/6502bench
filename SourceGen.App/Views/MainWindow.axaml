@@ -1,0 +1,298 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+        x:Class="SourceGen.Views.MainWindow"
+        Title="6502bench SourceGen"
+        Width="1200" Height="700" MinWidth="800" MinHeight="500">
+
+  <Window.KeyBindings>
+    <!-- Replaces the WPF InputGestures attached to RoutedUICommands. -->
+    <KeyBinding Gesture="Ctrl+N" Command="{Binding NewProjectCommand}" />
+    <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenCommand}" />
+    <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+    <KeyBinding Gesture="Ctrl+Shift+S" Command="{Binding SaveAsCommand}" />
+    <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseCommand}" />
+    <KeyBinding Gesture="Ctrl+Z" Command="{Binding UndoCommand}" />
+    <KeyBinding Gesture="Ctrl+Y" Command="{Binding RedoCommand}" />
+    <KeyBinding Gesture="Ctrl+A" Command="{Binding SelectAllCommand}" />
+    <KeyBinding Gesture="Ctrl+F" Command="{Binding FindCommand}" />
+    <KeyBinding Gesture="F3" Command="{Binding FindNextCommand}" />
+    <KeyBinding Gesture="Shift+F3" Command="{Binding FindPreviousCommand}" />
+    <KeyBinding Gesture="Ctrl+G" Command="{Binding GotoCommand}" />
+    <KeyBinding Gesture="Ctrl+;" Command="{Binding EditCommentCommand}" />
+    <KeyBinding Gesture="F1" Command="{Binding HelpCommand}" />
+  </Window.KeyBindings>
+
+  <DockPanel>
+
+    <!-- ===== menu bar ===== -->
+    <Menu DockPanel.Dock="Top" Name="appMenu">
+      <MenuItem Header="_File">
+        <MenuItem Header="_New Project" Command="{Binding NewProjectCommand}" />
+        <MenuItem Header="_Open..." Command="{Binding OpenCommand}" />
+        <MenuItem Header="_Save" Command="{Binding SaveCommand}" />
+        <MenuItem Header="Save _As..." Command="{Binding SaveAsCommand}" />
+        <MenuItem Header="_Close" Command="{Binding CloseCommand}" />
+        <Separator />
+        <MenuItem Header="Recent Projects" Name="recentProjectsMenu">
+          <MenuItem Header="(none)" IsEnabled="False" />
+        </MenuItem>
+        <Separator />
+        <MenuItem Header="_Assemble" Command="{Binding AssembleCommand}" />
+        <MenuItem Header="_Export..." Command="{Binding ExportCommand}" />
+        <MenuItem Header="Generate _Labels..." Command="{Binding GenerateLabelsCommand}" />
+        <MenuItem Header="_Reload External Files" Command="{Binding ReloadExternalFilesCommand}" />
+        <Separator />
+        <MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGesture="Alt+F4" />
+      </MenuItem>
+
+      <MenuItem Header="_Edit">
+        <MenuItem Header="_Undo" Command="{Binding UndoCommand}" />
+        <MenuItem Header="_Redo" Command="{Binding RedoCommand}" />
+        <Separator />
+        <MenuItem Header="_Copy" Command="{Binding CopyCommand}" />
+        <MenuItem Header="Select _All" Command="{Binding SelectAllCommand}" />
+        <Separator />
+        <MenuItem Header="Edit _Header Comment..." Command="{Binding EditHeaderCommentCommand}" />
+        <MenuItem Header="Project _Properties..." Command="{Binding ProjectPropertiesCommand}" />
+        <MenuItem Header="_App Settings..." Command="{Binding EditAppSettingsCommand}" />
+      </MenuItem>
+
+      <MenuItem Header="_Navigate">
+        <MenuItem Header="Navigate _Forward" Command="{Binding NavigateForwardCommand}" />
+        <MenuItem Header="Navigate _Backward" Command="{Binding NavigateBackwardCommand}" />
+        <MenuItem Header="_Goto..." Command="{Binding GotoCommand}" />
+        <MenuItem Header="Goto Last _Change" Command="{Binding GotoLastChangeCommand}" />
+        <MenuItem Header="Jump to _Operand" Command="{Binding JumpToOperandCommand}" />
+        <Separator />
+        <MenuItem Header="_Find..." Command="{Binding FindCommand}" />
+        <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" />
+        <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" />
+        <MenuItem Header="Find _All" Command="{Binding FindAllCommand}" />
+        <Separator />
+        <MenuItem Header="View _Address Map" Command="{Binding ViewAddressMapCommand}" />
+      </MenuItem>
+
+      <MenuItem Header="_Actions">
+        <MenuItem Header="Edit _Operand" Command="{Binding EditOperandCommand}" />
+        <MenuItem Header="Edit _Label" Command="{Binding EditLabelCommand}" />
+        <MenuItem Header="Edit _Comment" Command="{Binding EditCommentCommand}" InputGesture="Ctrl+;" />
+        <MenuItem Header="Edit _Long Comment" Command="{Binding EditLongCommentCommand}" />
+        <MenuItem Header="Edit _Note" Command="{Binding EditNoteCommand}" />
+        <MenuItem Header="Edit _Address" Command="{Binding EditAddressCommand}" />
+        <MenuItem Header="Edit _Status Flags" Command="{Binding EditStatusFlagsCommand}" />
+        <MenuItem Header="Edit _Data Bank" Command="{Binding EditDataBankCommand}" />
+        <MenuItem Header="Edit Project _Symbol" Command="{Binding EditProjectSymbolCommand}" />
+        <MenuItem Header="Edit _Visualization Set" Command="{Binding EditVisualizationSetCommand}" />
+        <Separator />
+        <MenuItem Header="Tag As Code _Start Point" Command="{Binding TagAsCodeStartPointCommand}" />
+        <MenuItem Header="Tag As Code Stop Point" Command="{Binding TagAsCodeStopPointCommand}" />
+        <MenuItem Header="Tag As _Inline Data" Command="{Binding TagAsInlineDataCommand}" />
+        <MenuItem Header="Remove Analyzer _Tags" Command="{Binding RemoveAnalyzerTagsCommand}" />
+        <Separator />
+        <MenuItem Header="Format As _Word" Command="{Binding FormatAsWordCommand}" />
+        <MenuItem Header="Remove _Formatting" Command="{Binding RemoveFormattingCommand}" />
+        <MenuItem Header="Delete Long _Comment" Command="{Binding DeleteMlcCommand}" />
+      </MenuItem>
+
+      <MenuItem Header="_Tools">
+        <MenuItem Header="_Hex Dump" Command="{Binding ShowHexDumpCommand}" />
+        <MenuItem Header="Instruction _Chart" Command="{Binding ShowInstructionChartCommand}" />
+        <MenuItem Header="_ASCII Chart" Command="{Binding ShowAsciiChartCommand}" />
+        <MenuItem Header="File _Slicer" Command="{Binding FileSlicerCommand}" />
+        <MenuItem Header="File _Concatenator" Command="{Binding FileConcatenatorCommand}" />
+      </MenuItem>
+
+      <MenuItem Header="_Help">
+        <MenuItem Header="_Contents" Command="{Binding HelpCommand}" />
+        <MenuItem Header="_About..." Command="{Binding AboutCommand}" />
+      </MenuItem>
+    </Menu>
+
+    <!-- ===== status bar ===== -->
+    <Border DockPanel.Dock="Bottom" Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+            BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
+      <Grid ColumnDefinitions="Auto,*,Auto" Margin="6,2">
+        <TextBlock Grid.Column="0" Name="statusBarText" Text="Ready" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Name="byteCountText" HorizontalAlignment="Center"
+                   VerticalAlignment="Center" />
+        <Button Grid.Column="2" Name="messageStatusButton" Margin="4,0,20,0" Padding="4,0"
+                Content="0 messages" Click="MessageStatusButton_Click" />
+      </Grid>
+    </Border>
+
+    <!-- ===== three-panel workspace ===== -->
+    <Grid Name="triptychGrid" ColumnDefinitions="*,Auto,*,Auto,*">
+
+      <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
+      <GridSplitter Grid.Column="3" Width="4" ResizeDirection="Columns" />
+
+      <!-- left: references / notes -->
+      <Grid Grid.Column="0" RowDefinitions="2*,Auto,*" MinWidth="100">
+        <HeaderedContentControl Grid.Row="0" Header="References">
+          <Grid RowDefinitions="*,Auto">
+            <DataGrid Grid.Row="0" Name="referencesGrid" IsReadOnly="True"
+                      AutoGenerateColumns="False" CanUserReorderColumns="False"
+                      GridLinesVisibility="Vertical" HeadersVisibility="Column"
+                      SelectionMode="Single">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Offset" Width="53" Binding="{Binding Offset}" />
+                <DataGridTextColumn Header="Addr" Width="53" Binding="{Binding Addr}" />
+                <DataGridTextColumn Header="Type" Width="119" Binding="{Binding Type}" />
+              </DataGrid.Columns>
+            </DataGrid>
+            <Button Grid.Row="1" Content="Copy Out" Width="70" Height="19" Margin="2"
+                    HorizontalAlignment="Right" Click="ReferencesListCopyOut_Click" />
+          </Grid>
+        </HeaderedContentControl>
+
+        <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" ResizeDirection="Rows" />
+
+        <HeaderedContentControl Grid.Row="2" Header="Notes">
+          <DataGrid Name="notesGrid" IsReadOnly="True"
+                    AutoGenerateColumns="False" CanUserReorderColumns="False"
+                    GridLinesVisibility="Vertical" HeadersVisibility="Column"
+                    SelectionMode="Single">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Offset" Width="53" Binding="{Binding Offset}" />
+              <DataGridTextColumn Header="Note" Width="400" Binding="{Binding Note}" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </HeaderedContentControl>
+      </Grid>
+
+      <!-- middle: code list (or launch panel) above the message list -->
+      <Grid Grid.Column="2" RowDefinitions="*,Auto">
+
+        <!-- launch panel, shown when no project is open -->
+        <Grid Grid.Row="0" Name="launchPanel" ColumnDefinitions="Auto,*" RowDefinitions="Auto,*">
+          <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+            <TextBlock Text="6502bench SourceGen" FontSize="36" VerticalAlignment="Center"
+                       Margin="8" />
+            <TextBlock Name="launchVersionText" FontSize="24" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" Grid.Column="0" HorizontalAlignment="Left">
+            <Button Content="Start new project" Width="240" Height="50" Margin="10,30,10,10"
+                    Command="{Binding NewProjectCommand}" />
+            <Button Content="Open existing project" Width="240" Height="50" Margin="10"
+                    Command="{Binding OpenCommand}" />
+          </StackPanel>
+        </Grid>
+
+        <!-- code list, shown when a project is open -->
+        <Grid Grid.Row="0" Name="codeListGrid" IsVisible="False" RowDefinitions="Auto,*">
+          <!-- Column headers.  The WPF version used ListView+GridView, which Avalonia does
+               not have; a fixed header row plus a virtualizing ListBox reproduces it and
+               keeps the monospace column alignment the disassembly relies on. -->
+          <Border Grid.Row="0" Name="codeListHeader" Padding="4,2"
+                  Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+            <Grid ColumnDefinitions="60,60,93,80,54,73,60,100,*">
+              <TextBlock Grid.Column="0" Text="Offset" />
+              <TextBlock Grid.Column="1" Text="Addr" />
+              <TextBlock Grid.Column="2" Text="Bytes" />
+              <TextBlock Grid.Column="3" Text="Flags" />
+              <TextBlock Grid.Column="4" Text="Attr" />
+              <TextBlock Grid.Column="5" Text="Label" />
+              <TextBlock Grid.Column="6" Text="Opcode" />
+              <TextBlock Grid.Column="7" Text="Operand" />
+              <TextBlock Grid.Column="8" Text="Comment" />
+            </Grid>
+          </Border>
+
+          <ListBox Grid.Row="1" Name="codeListView" SelectionMode="Multiple"
+                   SelectionChanged="CodeListView_SelectionChanged"
+                   DoubleTapped="CodeListView_DoubleTapped">
+            <ListBox.Styles>
+              <!-- Fixed row height is what lets the virtualizer skip measuring off-screen rows. -->
+              <Style Selector="ListBoxItem">
+                <Setter Property="MinHeight" Value="16" />
+                <Setter Property="Padding" Value="4,0" />
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Grid ColumnDefinitions="60,60,93,80,54,73,60,100,*">
+                  <TextBlock Grid.Column="0" Text="{Binding Offset}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Addr}" />
+                  <TextBlock Grid.Column="2" Text="{Binding Bytes}" />
+                  <TextBlock Grid.Column="3" Text="{Binding Flags}" />
+                  <TextBlock Grid.Column="4" Text="{Binding Attr}" />
+                  <TextBlock Grid.Column="5" Text="{Binding Label}" />
+                  <TextBlock Grid.Column="6" Text="{Binding Opcode}" />
+                  <TextBlock Grid.Column="7" Text="{Binding Operand}" />
+                  <TextBlock Grid.Column="8" Text="{Binding Comment}" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+
+        <!-- message list -->
+        <DockPanel Grid.Row="1" Name="messageListPanel" IsVisible="False">
+          <Button DockPanel.Dock="Left" Content="Hide" Width="50" Margin="4,0"
+                  VerticalAlignment="Bottom" Click="HideMessageList_Click" />
+          <DataGrid DockPanel.Dock="Top" Name="messageGrid" Height="100" IsReadOnly="True"
+                    AutoGenerateColumns="False" CanUserReorderColumns="False"
+                    GridLinesVisibility="Vertical" HeadersVisibility="Column"
+                    SelectionMode="Single">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Severity" Width="64" Binding="{Binding Severity}" />
+              <DataGridTextColumn Header="Offset" Width="53" Binding="{Binding Offset}" />
+              <DataGridTextColumn Header="Type" Width="160" Binding="{Binding Type}" />
+              <DataGridTextColumn Header="Context" Width="380" Binding="{Binding Context}" />
+              <DataGridTextColumn Header="Resolution" Width="250" Binding="{Binding Resolution}" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </DockPanel>
+      </Grid>
+
+      <!-- right: symbols / info -->
+      <Grid Grid.Column="4" RowDefinitions="2*,Auto,*" MinWidth="100">
+        <HeaderedContentControl Grid.Row="0" Header="Symbols">
+          <Grid RowDefinitions="Auto,*">
+            <WrapPanel Grid.Row="0">
+              <ToggleButton Content="User" Width="40" Margin="2" />
+              <ToggleButton Content="NonU" Width="40" Margin="2" />
+              <ToggleButton Content="Proj" Width="40" Margin="2" />
+              <ToggleButton Content="Plat" Width="40" Margin="2" />
+              <ToggleButton Content="PreL" Width="40" Margin="2" />
+              <ToggleButton Content="Auto" Width="40" Margin="2" />
+              <ToggleButton Content="Addr" Width="40" Margin="2" />
+              <ToggleButton Content="Cnst" Width="40" Margin="2" />
+            </WrapPanel>
+            <DataGrid Grid.Row="1" Name="symbolsGrid" IsReadOnly="True"
+                      AutoGenerateColumns="False" CanUserReorderColumns="False"
+                      GridLinesVisibility="Vertical" HeadersVisibility="Column"
+                      SelectionMode="Single">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Type" Width="36" Binding="{Binding Type}" />
+                <DataGridTextColumn Header="Value" Width="66" Binding="{Binding Value}" />
+                <DataGridTextColumn Header="Name" Width="120" Binding="{Binding Name}" />
+              </DataGrid.Columns>
+            </DataGrid>
+          </Grid>
+        </HeaderedContentControl>
+
+        <GridSplitter Grid.Row="1" Height="4" HorizontalAlignment="Stretch" ResizeDirection="Rows" />
+
+        <HeaderedContentControl Grid.Row="2" Header="Info">
+          <ScrollViewer>
+            <StackPanel Spacing="2" Margin="2">
+              <TextBlock Name="infoLineDescr" TextWrapping="Wrap" />
+              <TextBlock Name="infoOffset" TextWrapping="Wrap" Foreground="Gray" />
+              <TextBlock Name="infoLabelDescr" TextWrapping="Wrap" />
+              <Border BorderThickness="1" Padding="1" Margin="0,2">
+                <TextBlock Name="infoFormatText" TextWrapping="Wrap" />
+              </Border>
+              <TextBox Name="infoPanelDetail1" IsReadOnly="True" TextWrapping="Wrap"
+                       BorderThickness="0" />
+            </StackPanel>
+          </ScrollViewer>
+        </HeaderedContentControl>
+      </Grid>
+
+    </Grid>
+  </DockPanel>
+
+</Window>

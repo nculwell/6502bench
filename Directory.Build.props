@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Shared build properties for the .NET 10 port of 6502bench.
+
+     IMPORTANT: this file is imported by EVERY project in the tree, including the
+     legacy WPF projects that have not been ported yet.  Nothing here may force a
+     target framework or otherwise break those builds, so the ported TFM is exposed
+     as a property that projects opt into via:
+
+         <TargetFramework>$(PortTargetFramework)</TargetFramework>
+-->
+<Project>
+
+  <PropertyGroup>
+    <!-- Target framework for the cross-platform libraries and applications. -->
+    <PortTargetFramework>net10.0</PortTargetFramework>
+
+    <!-- The codebase predates modern C# defaults; keep them off so the port does
+         not have to annotate every file. -->
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+
+    <!-- Reproducible builds. -->
+    <Deterministic>true</Deterministic>
+
+    <!-- The sources were written for the .NET Framework analyzers; turning these
+         off keeps the port's build output readable.  Can be revisited later. -->
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <AnalysisLevel>none</AnalysisLevel>
+  </PropertyGroup>
+
+</Project>

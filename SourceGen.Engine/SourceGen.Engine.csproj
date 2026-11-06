@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>$(PortTargetFramework)</TargetFramework>
+    <RootNamespace>SourceGen</RootNamespace>
+    <AssemblyName>SourceGen.Engine</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Asm65\Asm65.csproj" />
+    <ProjectReference Include="..\CommonUtil\CommonUtil.csproj" />
+    <ProjectReference Include="..\PluginCommon\PluginCommon.csproj" />
+    <ProjectReference Include="..\SourceGen\RuntimeData\RuntimeData.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Provides Color, brushes, FormattedText and the bitmap types used by the
+         display list and the visualization renderers.  Avalonia.Base is the headless
+         portion of the framework, so the engine does not depend on the UI toolkit. -->
+    <PackageReference Include="Avalonia" Version="11.3.2" />
+
+    <!-- Extension scripts are compiled at run time.  This replaces CodeDom /
+         CSharpCodeProvider, which does not exist on .NET Core. -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The regression harness exercises the project-file serializer, which is internal to
+         the engine. -->
+    <InternalsVisibleTo Include="SourceGen.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Strings.xaml stays the single source of truth for the string table; it is
+         embedded so Res.Strings can be used without an Application/ResourceDictionary. -->
+    <EmbeddedResource Include="Res\Strings.xaml">
+      <LogicalName>SourceGen.Res.Strings.xaml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

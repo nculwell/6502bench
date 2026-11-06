@@ -1,0 +1,48 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="SourceGen.App"
+             RequestedThemeVariant="Light">
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <!-- Avalonia ships DataGrid theming as a separate style include. -->
+    <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
+
+    <!-- Fade command icons when the associated control is disabled.  In WPF this was a
+         trigger inside the icon resource dictionary; Avalonia styles cannot live there. -->
+    <Style Selector="Viewbox:disabled">
+      <Setter Property="Opacity" Value="0.25" />
+    </Style>
+
+    <!-- Avalonia has no GroupBox, so the panes use HeaderedContentControl with a
+         bordered box and a header line, matching the WPF look. -->
+    <Style Selector="HeaderedContentControl">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"
+                  BorderThickness="1" CornerRadius="2">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Top" Text="{TemplateBinding Header}"
+                         Margin="6,2,6,0" FontWeight="SemiBold" />
+              <ContentPresenter Content="{TemplateBinding Content}" Margin="2" />
+            </DockPanel>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+  </Application.Styles>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <!-- Light and dark palettes; only one is merged at a time and the choice is
+             applied at runtime from AppSettings. -->
+        <ResourceInclude Source="avares://SourceGen/Res/Theme_Light.axaml" />
+        <!-- The string table is owned by the engine so Res.Strings and XAML agree. -->
+        <ResourceInclude Source="avares://SourceGen/Res/Strings.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
+
+</Application>

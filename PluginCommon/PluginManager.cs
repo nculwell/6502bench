@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2018 faddenSoft
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,13 +24,18 @@ using CommonUtil;
 
 namespace PluginCommon {
     /// <summary>
-    /// Manages loaded plugins, in the "remote" AppDomain.
+    /// Manages loaded plugins.
+    ///
+    /// This used to be a MarshalByRefObject living in a remote AppDomain, with the host
+    /// talking to it through remoting.  Neither AppDomains nor remoting exist on .NET Core,
+    /// so plugins now run in-process and this is an ordinary object.  The host-side
+    /// ScriptManager owns compilation and loading; this class remains the plugin registry.
     /// </summary>
-    public sealed class PluginManager : MarshalByRefObject {
+    public sealed class PluginManager {
         /// <summary>
         /// Collection of instances of active plugins, keyed by script identifier.  Other
-        /// plugin assemblies may be present in the AppDomain, but have not been identified
-        /// by the application as being of interest.
+        /// plugin assemblies may be loaded, but have not been identified by the application
+        /// as being of interest.
         /// </summary>
         private Dictionary<string, IPlugin> mActivePlugins = new Dictionary<string, IPlugin>();
 
@@ -43,30 +48,18 @@ namespace PluginCommon {
 
 
         /// <summary>
-        /// Constructor, invoked from CreateInstanceAndUnwrap().
+        /// Constructor.
         /// </summary>
         public PluginManager() {
-            Debug.WriteLine("PluginManager ctor (id=" + AppDomain.CurrentDomain.Id + ")");
-
             mLastPing = DateTime.Now;
-
-            // Seems to require [SecurityCritical]
-            //Type lsc = Type.GetType("System.Runtime.Remoting.Lifetime.LifetimeServices");
-            //PropertyInfo prop = lsc.GetProperty("LeaseTime");
-            //prop.SetValue(null, TimeSpan.FromSeconds(30));
-        }
-
-        ~PluginManager() {
-            Debug.WriteLine("~PluginManager (id=" + AppDomain.CurrentDomain.Id + ")");
         }
 
         /// <summary>
         /// Sets the file data to use for all plugins.
-        /// 
-        /// The file data argument will be an AppDomain-local copy of the data, made by the
-        /// argument marshalling code.  So plugins can scribble all over it without trashing
-        /// the original.  We want to store it in PluginManager so we don't make a new copy
-        /// for each individual plugin.
+        ///
+        /// Callers should pass a copy if plugins may modify it, since this is now a plain
+        /// reference rather than a marshalled AppDomain-local copy.  Storing it here avoids
+        /// making a separate copy per plugin.
         /// </summary>
         /// <param name="fileData">65xx code and data.</param>
         public void SetFileData(byte[] fileData) {
@@ -74,10 +67,11 @@ namespace PluginCommon {
         }
 
         /// <summary>
-        /// Tests simple round-trip communication.  This may be called from an arbitrary thread.
+        /// Returns the number of seconds since the last ping.
         /// </summary>
         /// <remarks>
-        /// This is used for keep-alives and health checks, so it may be called frequently.
+        /// This existed to detect a dead remoting lease, so the host could reboot the
+        /// sandbox.  Retained because it is harmless and cheap.
         /// </remarks>
         public int Ping(int val) {
             //Debug.WriteLine("PluginManager Ping tid=" + Thread.CurrentThread.ManagedThreadId +
@@ -159,17 +153,14 @@ namespace PluginCommon {
             Dictionary<string, IPlugin> dict =
                 new Dictionary<string, IPlugin>(mActivePlugins.Count);
             foreach (KeyValuePair<string, IPlugin> kvp in mActivePlugins) {
-                // copy the contents; probably not necessary across AppDomain
                 dict.Add(kvp.Key, kvp.Value);
             }
-            Debug.WriteLine("PluginManager: returning " + dict.Count + " plugins (id=" +
-                AppDomain.CurrentDomain.Id + ")");
+            Debug.WriteLine("PluginManager: returning " + dict.Count + " plugins");
             return dict;
         }
 
         /// <summary>
-        /// Clears the list of loaded plugins.  This does not unload the assemblies from
-        /// the AppDomain.
+        /// Clears the list of loaded plugins.  This does not unload the assemblies.
         /// </summary>
         public void ClearPluginList() {
             mActivePlugins.Clear();
