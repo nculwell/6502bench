@@ -338,6 +338,11 @@ namespace SourceGen.Tui {
         public bool LastSearchMatchCase { get; private set; }
 
         /// <summary>
+        /// Direction of the last search (true = forward).  Find Again repeats it.
+        /// </summary>
+        public bool LastSearchForward { get; private set; } = true;
+
+        /// <summary>
         /// Searches forward from the current selection.
         /// </summary>
         /// <param name="needle">Text to find.</param>
@@ -348,6 +353,18 @@ namespace SourceGen.Tui {
             error = null;
             LastSearchText = needle ?? string.Empty;
             LastSearchMatchCase = matchCase;
+            LastSearchForward = true;
+            return RunSearch(out error);
+        }
+
+        /// <summary>
+        /// Searches backwards from the current selection.
+        /// </summary>
+        public bool FindPrevious(string needle, bool matchCase, out string error) {
+            error = null;
+            LastSearchText = needle ?? string.Empty;
+            LastSearchMatchCase = matchCase;
+            LastSearchForward = false;
             return RunSearch(out error);
         }
 
@@ -370,8 +387,11 @@ namespace SourceGen.Tui {
                 return false;
             }
 
-            int match = Controller.FindNext(LastSearchText, SelectedLine,
-                LastSearchMatchCase, out bool wrapped);
+            int match = LastSearchForward
+                ? Controller.FindNext(LastSearchText, SelectedLine, LastSearchMatchCase,
+                    out bool wrapped)
+                : Controller.FindPrevious(LastSearchText, SelectedLine, LastSearchMatchCase,
+                    out wrapped);
             if (match < 0) {
                 error = "Not found: " + LastSearchText;
                 return false;

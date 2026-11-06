@@ -14,6 +14,7 @@
     <CheckBox Name="matchCaseCheck" Content="Match case" />
     <TextBlock Name="statusText" Foreground="Gray" TextWrapping="Wrap" />
     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Name="findPreviousButton" Content="Find Previous" MinWidth="110" />
       <Button Name="findButton" Content="Find Next" IsDefault="True" MinWidth="100" />
       <Button Name="closeButton" Content="Close" IsCancel="True" MinWidth="84" />
     </StackPanel>

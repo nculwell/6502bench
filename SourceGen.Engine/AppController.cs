@@ -515,6 +515,47 @@ namespace SourceGen {
         }
 
         /// <summary>
+        /// Searches the listing backwards for a substring, starting before the given line.
+        /// </summary>
+        /// <param name="needle">Text to look for.</param>
+        /// <param name="startLine">Line to start before.</param>
+        /// <param name="matchCase">If set, the comparison is case-sensitive.</param>
+        /// <param name="wrapped">Set if the search restarted at the bottom.</param>
+        /// <returns>Line index of the match, or -1.</returns>
+        public int FindPrevious(string needle, int startLine, bool matchCase,
+                out bool wrapped) {
+            wrapped = false;
+            if (mProject == null || mLineListGen == null || string.IsNullOrEmpty(needle)) {
+                return -1;
+            }
+
+            int count = mLineListGen.Count;
+            if (count == 0) {
+                return -1;
+            }
+
+            StringComparison comparison = matchCase ? StringComparison.Ordinal :
+                StringComparison.OrdinalIgnoreCase;
+
+            // Exclusive upper bound: a negative start line means "begin at the bottom".
+            int from = startLine < 0 ? count : Math.Min(startLine, count);
+
+            // Search upwards to the top, then wrap around to the bottom.
+            for (int i = from - 1; i >= 0; i--) {
+                if (mLineListGen.GetSearchString(i).IndexOf(needle, comparison) >= 0) {
+                    return i;
+                }
+            }
+            for (int i = count - 1; i >= from; i--) {
+                if (mLineListGen.GetSearchString(i).IndexOf(needle, comparison) >= 0) {
+                    wrapped = true;
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
         /// Multi-line comment text at an offset, or empty string if none.
         /// </summary>
         public string GetLongCommentAt(int offset) {

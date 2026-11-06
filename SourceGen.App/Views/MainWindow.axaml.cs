@@ -139,7 +139,8 @@ namespace SourceGen.Views {
             FindCommand = new RelayCommand(ShowFind, () => mController.HasProject);
             FindNextCommand = new RelayCommand(() => FindAgain(),
                 () => mController.HasProject && mLastSearchText.Length > 0);
-            FindPreviousCommand = Pending("Find Previous");
+            FindPreviousCommand = new RelayCommand(() => FindPreviousAgain(),
+                () => mController.HasProject && mLastSearchText.Length > 0);
             FindAllCommand = Pending("Find All");
             GotoCommand = Pending("Goto");
             GotoLastChangeCommand = Pending("Goto Last Change");
@@ -231,6 +232,7 @@ namespace SourceGen.Views {
 
         private string mLastSearchText = string.Empty;
         private bool mLastSearchMatchCase;
+        private bool mLastSearchForward = true;
         private FindDialog mFindDialog;
 
         /// <summary>
@@ -241,7 +243,10 @@ namespace SourceGen.Views {
                 mFindDialog.Activate();
                 return;
             }
-            mFindDialog = new FindDialog { OnFind = DoFind };
+            mFindDialog = new FindDialog {
+                OnFind = DoFind,
+                OnFindPrevious = DoFindPrevious,
+            };
             mFindDialog.Configure(mLastSearchText, mLastSearchMatchCase);
             mFindDialog.Closed += (sender, e) => mFindDialog = null;
             mFindDialog.Show(this);
@@ -253,7 +258,15 @@ namespace SourceGen.Views {
         private string DoFind(string text, bool matchCase) {
             mLastSearchText = text;
             mLastSearchMatchCase = matchCase;
-            return FindAndReport();
+            mLastSearchForward = true;
+            return FindAndReport(true);
+        }
+
+        private string DoFindPrevious(string text, bool matchCase) {
+            mLastSearchText = text;
+            mLastSearchMatchCase = matchCase;
+            mLastSearchForward = false;
+            return FindAndReport(false);
         }
 
         /// <summary>
@@ -264,23 +277,40 @@ namespace SourceGen.Views {
                 ShowFind();
                 return;
             }
-            string status = FindAndReport();
+            string status = FindAndReport(mLastSearchForward);
             this.FindControl<TextBlock>("statusBarText").Text = status;
         }
 
-        private string FindAndReport() {
+        /// <summary>
+        /// Shift+F3: repeat the search backwards.
+        /// </summary>
+        private void FindPreviousAgain() {
+            if (mLastSearchText.Length == 0) {
+                ShowFind();
+                return;
+            }
+            mLastSearchForward = false;
+            string status = FindAndReport(false);
+            this.FindControl<TextBlock>("statusBarText").Text = status;
+        }
+
+        private string FindAndReport(bool forward) {
             ListBox list = this.FindControl<ListBox>("codeListView");
             int startLine = list?.SelectedIndex ?? -1;
 
-            int match = mController.FindNext(mLastSearchText, startLine,
-                mLastSearchMatchCase, out bool wrapped);
+            int match = forward
+                ? mController.FindNext(mLastSearchText, startLine, mLastSearchMatchCase,
+                    out bool wrapped)
+                : mController.FindPrevious(mLastSearchText, startLine, mLastSearchMatchCase,
+                    out wrapped);
             if (match < 0) {
                 return "Not found: " + mLastSearchText;
             }
 
             mSelectedLineIndex = match;
             RefreshFromController();
-            return (wrapped ? "Wrapped to top -- " : "") + "Found at line " + (match + 1);
+            return (wrapped ? (forward ? "Wrapped to bottom -- " : "Wrapped to top -- ")
+                : "") + "Found at line " + (match + 1);
         }
 
         // ---- editing ----
@@ -480,6 +510,7 @@ namespace SourceGen.Views {
             SaveCommand?.RaiseCanExecuteChanged();
             FindCommand?.RaiseCanExecuteChanged();
             FindNextCommand?.RaiseCanExecuteChanged();
+            FindPreviousCommand?.RaiseCanExecuteChanged();
             EditLongCommentCommand?.RaiseCanExecuteChanged();
             UndoCommand?.RaiseCanExecuteChanged();
             RedoCommand?.RaiseCanExecuteChanged();

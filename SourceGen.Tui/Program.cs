@@ -84,8 +84,9 @@ namespace SourceGen.Tui {
                     new MenuItem("Edit _Comment...", "Ctrl+;", () => EditComment()),
                     new MenuItem("Edit _Long Comment...", "Ctrl+K", () => EditLongComment()),
                     null,
-                    new MenuItem("_Find...", "Ctrl+F", () => Find()),
+                    new MenuItem("_Find...", "Ctrl+F", () => Find(forward: true)),
                     new MenuItem("Find _Next", "F3", () => FindNext()),
+                    new MenuItem("Find _Previous", "Shift+F3", () => Find(forward: false)),
                 }),
                 new MenuBarItem("_Help", new MenuItem[] {
                     new MenuItem("_Keys", "", () => ShowKeys()),
@@ -198,7 +199,11 @@ namespace SourceGen.Tui {
                         args.Handled = true;
                         break;
                     case Key.f when ctrl:
-                        Find();
+                        Find(forward: true);
+                        args.Handled = true;
+                        break;
+                    case Key.F3 when args.KeyEvent.IsShift:
+                        Find(forward: false);
                         args.Handled = true;
                         break;
                     case Key.F3:
@@ -333,7 +338,7 @@ namespace SourceGen.Tui {
         /// <summary>
         /// Prompts for a search string and jumps to the next match.
         /// </summary>
-        private static void Find() {
+        private static void Find(bool forward) {
             if (!sModel.HasProject) {
                 MessageBox.ErrorQuery("Find", "No project is open.", "OK");
                 return;
@@ -356,7 +361,7 @@ namespace SourceGen.Tui {
             bool accepted = false;
             string needle = null;
             bool caseSensitive = false;
-            Button ok = new Button("Find Next", true);
+            Button ok = new Button(forward ? "Find Next" : "Find Previous", true);
             ok.Clicked += () => {
                 accepted = true;
                 needle = field.Text?.ToString() ?? string.Empty;
@@ -372,7 +377,10 @@ namespace SourceGen.Tui {
             if (!accepted || string.IsNullOrEmpty(needle)) {
                 return;
             }
-            if (!sModel.FindNext(needle, caseSensitive, out string error)) {
+            bool found = forward
+                ? sModel.FindNext(needle, caseSensitive, out string error)
+                : sModel.FindPrevious(needle, caseSensitive, out error);
+            if (!found) {
                 MessageBox.ErrorQuery("Find", error ?? "Not found.", "OK");
             }
             RefreshView();
@@ -500,7 +508,7 @@ namespace SourceGen.Tui {
         private static void ShowKeys() {
             MessageBox.Query("Keys",
                 "Up/Down/PgUp/PgDn/Home/End  move  |  Ctrl+L label  |  Ctrl+; comment\n" +
-                "Ctrl+K long comment  |  Ctrl+F find  |  F3 find next\n" +
+                "Ctrl+K long comment  |  Ctrl+F find  |  F3 / Shift+F3 next / previous\n" +
                 "Ctrl+Z undo  |  Ctrl+Y redo  |  Ctrl+S save  |  Ctrl+O open\n" +
                 "Ctrl+G generate assembly  |  Ctrl+Q quit",
                 "OK");

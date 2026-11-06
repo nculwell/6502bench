@@ -46,6 +46,11 @@ namespace SourceGen.Views {
         /// </summary>
         public Func<string, bool, string> OnFind { get; set; }
 
+        /// <summary>
+        /// Invoked when the user asks for the previous match.
+        /// </summary>
+        public Func<string, bool, string> OnFindPrevious { get; set; }
+
         public FindDialog() {
             InitializeComponent();
 
@@ -55,6 +60,14 @@ namespace SourceGen.Views {
                     return;
                 }
                 string status = OnFind?.Invoke(SearchText, MatchCase);
+                this.FindControl<TextBlock>("statusText").Text = status ?? string.Empty;
+            };
+            this.FindControl<Button>("findPreviousButton").Click += (sender, e) => {
+                if (string.IsNullOrEmpty(SearchText)) {
+                    this.FindControl<TextBlock>("statusText").Text = "Enter some text to find.";
+                    return;
+                }
+                string status = OnFindPrevious?.Invoke(SearchText, MatchCase);
                 this.FindControl<TextBlock>("statusText").Text = status ?? string.Empty;
             };
             this.FindControl<Button>("closeButton").Click += (sender, e) => Close();
