@@ -325,6 +325,225 @@ namespace SourceGen {
             }
         }
 
+        // ---- editing ----
+
+        /// <summary>
+        /// Number of lines currently in the code list.
+        /// </summary>
+        public int LineCount {
+            get { return mLineListGen == null ? 0 : mLineListGen.Count; }
+        }
+
+        /// <summary>
+        /// Maps a code list line index to the file offset it represents, or -1.
+        /// </summary>
+        public int GetFileOffset(int lineIndex) {
+            if (mLineListGen == null || lineIndex < 0 || lineIndex >= mLineListGen.Count) {
+                return -1;
+            }
+            return mLineListGen[lineIndex].FileOffset;
+        }
+
+        /// <summary>
+        /// Current label in effect at the offset (user, auto or none), for pre-filling an
+        /// edit dialog.  Empty string when the offset has no label.
+        /// </summary>
+        public string GetLabelAt(int offset) {
+            if (mProject == null || offset < 0 || offset >= mProject.FileDataLength) {
+                return string.Empty;
+            }
+            Symbol sym = mProject.GetAnattrib(offset).Symbol;
+            return sym == null ? string.Empty : sym.Label;
+        }
+
+        /// <summary>
+        /// True if the label at the offset was set by the user (and can therefore be edited
+        /// or deleted).  Auto-generated labels cannot be renamed directly.
+        /// </summary>
+        public bool HasUserLabelAt(int offset) {
+            return mProject != null && mProject.UserLabels.ContainsKey(offset);
+        }
+
+        /// <summary>
+        /// Address of the offset, for display in the label editor.
+        /// </summary>
+        public int GetAddressAt(int offset) {
+            if (mProject == null || offset < 0 || offset >= mProject.FileDataLength) {
+                return Address.NON_ADDR;
+            }
+            Anattrib attr = mProject.GetAnattrib(offset);
+            return attr.IsNonAddressable ? Address.NON_ADDR : attr.Address;
+        }
+
+        /// <summary>
+        /// Sets or clears the user label at a file offset.
+        ///
+        /// This mirrors the WPF editor: the change is recorded as an undoable
+        /// UserLabels edit and the project is re-analysed afterwards.
+        /// </summary>
+        /// <param name="offset">File offset of the label.</param>
+        /// <param name="label">New label, or empty/null to remove the user label.</param>
+        /// <param name="error">On failure, a message describing the problem.</param>
+        public bool SetLabel(int offset, string label, out string error) {
+            error = null;
+            if (mProject == null) {
+                error = "No project is open.";
+                return false;
+            }
+            if (offset < 0 || offset >= mProject.FileDataLength) {
+                error = "Offset is outside the file.";
+                return false;
+            }
+
+            mProject.UserLabels.TryGetValue(offset, out Symbol oldSymbol);
+
+            Symbol newSymbol = null;
+            if (!string.IsNullOrEmpty(label)) {
+                if (!Asm65.Label.ValidateLabel(label)) {
+                    error = "'" + label + "' is not a valid label.";
+                    return false;
+                }
+                Anattrib attr = mProject.GetAnattrib(offset);
+                Symbol.Type type = attr.IsNonAddressable ?
+                    Symbol.Type.Constant : Symbol.Type.GlobalAddr;
+                newSymbol = new Symbol(label, attr.Address, Symbol.Source.User, type,
+                    Symbol.LabelAnnotation.None);
+            }
+
+            if (oldSymbol == newSymbol) {
+                return true;        // nothing to do
+            }
+
+            UndoableChange change =
+                UndoableChange.CreateLabelChange(offset, oldSymbol, newSymbol);
+            return ApplyChangeSet(new ChangeSet(change), "label", out error);
+        }
+
+        /// <summary>
+        /// Comment text at an offset, or empty string if none.
+        /// </summary>
+        public string GetCommentAt(int offset) {
+            if (mProject == null || offset < 0 || offset >= mProject.FileDataLength) {
+                return string.Empty;
+            }
+            return mProject.Comments[offset] ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Sets or clears the end-of-line comment at a file offset.
+        /// </summary>
+        /// <param name="offset">File offset of the comment.</param>
+        /// <param name="comment">New comment text; empty removes it.</param>
+        /// <param name="error">On failure, a message describing the problem.</param>
+        public bool SetComment(int offset, string comment, out string error) {
+            error = null;
+            if (mProject == null) {
+                error = "No project is open.";
+                return false;
+            }
+            if (offset < 0 || offset >= mProject.FileDataLength) {
+                error = "Offset is outside the file.";
+                return false;
+            }
+
+            string oldComment = mProject.Comments[offset] ?? string.Empty;
+            string newComment = comment ?? string.Empty;
+            if (oldComment == newComment) {
+                return true;
+            }
+
+            UndoableChange change = UndoableChange.CreateCommentChange(offset, oldComment,
+                newComment);
+            return ApplyChangeSet(new ChangeSet(change), "comment", out error);
+        }
+
+        /// <summary>
+        /// Applies a change set, pushes it onto the undo stack, and refreshes the display.
+        /// </summary>
+        private bool ApplyChangeSet(ChangeSet changeSet, string what, out string error) {
+            error = null;
+            try {
+                mProject.ApplyChanges(changeSet, false, out RangeSet affectedOffsets);
+                mProject.PushChangeSet(changeSet);
+            } catch (Exception ex) {
+                error = "Unable to apply " + what + " change: " + ex.Message;
+                return false;
+            }
+
+            // Re-analyse and rebuild: the change can affect labels referenced elsewhere,
+            // which in turn changes formatting further down the listing.
+            Refresh();
+            return true;
+        }
+
+        public bool CanUndo {
+            get { return mProject != null && mProject.CanUndo; }
+        }
+
+        public bool CanRedo {
+            get { return mProject != null && mProject.CanRedo; }
+        }
+
+        /// <summary>
+        /// Undoes the most recent change.
+        /// </summary>
+        public bool Undo(out string error) {
+            error = null;
+            if (mProject == null || !mProject.CanUndo) {
+                error = "Nothing to undo.";
+                return false;
+            }
+            ChangeSet changeSet = mProject.PopUndoSet();
+            mProject.ApplyChanges(changeSet, true, out RangeSet affectedOffsets);
+            Refresh();
+            return true;
+        }
+
+        /// <summary>
+        /// Redoes the most recently undone change.
+        /// </summary>
+        public bool Redo(out string error) {
+            error = null;
+            if (mProject == null || !mProject.CanRedo) {
+                error = "Nothing to redo.";
+                return false;
+            }
+            ChangeSet changeSet = mProject.PopRedoSet();
+            mProject.ApplyChanges(changeSet, false, out RangeSet affectedOffsets);
+            Refresh();
+            return true;
+        }
+
+        /// <summary>
+        /// Writes the project back to its .dis65 file.
+        /// </summary>
+        public bool SaveProject(out string error) {
+            error = null;
+            if (mProject == null || string.IsNullOrEmpty(mProject.ProjectPathName)) {
+                error = "No project is open.";
+                return false;
+            }
+
+            try {
+                string text = SerializableProjectFile1.SerializeProject(mProject);
+                File.WriteAllText(mProject.ProjectPathName, text);
+                mProject.ResetDirtyFlag();
+                StatusText = "Saved " + Path.GetFileName(mProject.ProjectPathName);
+                OnPropertyChanged(nameof(HasProject));
+                return true;
+            } catch (Exception ex) {
+                error = "Unable to save project: " + ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// True when there are unsaved edits.
+        /// </summary>
+        public bool IsDirty {
+            get { return mProject != null && mProject.IsDirty; }
+        }
+
         /// <summary>
         /// Discards the current project.
         /// </summary>

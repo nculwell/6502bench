@@ -1,0 +1,23 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SourceGen.Views.EditLabelDialog"
+        Title="Edit Label"
+        Width="460"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+
+  <StackPanel Margin="20" Spacing="12">
+    <TextBlock Name="locationText" Foreground="Gray" />
+    <TextBlock Name="currentText" TextWrapping="Wrap" />
+    <TextBox Name="labelBox" Watermark="Label (leave empty to remove)" />
+    <TextBlock TextWrapping="Wrap" Foreground="Gray" FontSize="11"
+               Text="Leave empty to remove the label. Letters, digits, underscore and '.' are allowed; it must not start with a digit." />
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button Name="okButton" Content="OK" IsDefault="True" MinWidth="84" />
+      <Button Name="cancelButton" Content="Cancel" IsCancel="True" MinWidth="84" />
+    </StackPanel>
+  </StackPanel>
+
+</Window>

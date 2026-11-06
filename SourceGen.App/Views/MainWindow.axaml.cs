@@ -131,11 +131,11 @@ namespace SourceGen.Views {
             // ---- commands blocked on the MainController port ----
             NewProjectCommand = Pending("New Project");
             OpenCommand = new RelayCommand(() => _ = OpenProjectAsync());
-            SaveCommand = Pending("Save");
+            SaveCommand = new RelayCommand(() => _ = SaveAsync(), () => mController.HasProject);
             SaveAsCommand = Pending("Save As");
             CloseCommand = new RelayCommand(CloseProject);
-            UndoCommand = Pending("Undo");
-            RedoCommand = Pending("Redo");
+            UndoCommand = new RelayCommand(() => _ = UndoAsync(), () => mController.CanUndo);
+            RedoCommand = new RelayCommand(() => _ = RedoAsync(), () => mController.CanRedo);
             FindCommand = Pending("Find");
             FindNextCommand = Pending("Find Next");
             FindPreviousCommand = Pending("Find Previous");
@@ -154,8 +154,10 @@ namespace SourceGen.Views {
             ProjectPropertiesCommand = Pending("Project Properties");
             EditAppSettingsCommand = Pending("App Settings");
             EditOperandCommand = Pending("Edit Operand");
-            EditLabelCommand = Pending("Edit Label");
-            EditCommentCommand = Pending("Edit Comment");
+            EditLabelCommand = new RelayCommand(() => _ = EditLabelAsync(),
+                () => GetSelectedOffset() >= 0);
+            EditCommentCommand = new RelayCommand(() => _ = EditCommentAsync(),
+                () => GetSelectedOffset() >= 0);
             EditLongCommentCommand = Pending("Edit Long Comment");
             EditNoteCommand = Pending("Edit Note");
             EditAddressCommand = Pending("Edit Address");
@@ -221,6 +223,91 @@ namespace SourceGen.Views {
                 }
             }
             await Ui.CopyTextAsync(this, sb.ToString());
+        }
+
+        // ---- editing ----
+
+        /// <summary>
+        /// File offset of the selected code list line, or -1 if nothing is selected.
+        /// </summary>
+        private int GetSelectedOffset() {
+            ListBox list = this.FindControl<ListBox>("codeListView");
+            if (list == null || list.SelectedIndex < 0) {
+                return -1;
+            }
+            return mController.GetFileOffset(list.SelectedIndex);
+        }
+
+        private string DescribeOffset(int offset) {
+            int addr = mController.GetAddressAt(offset);
+            string addrText = (addr == Asm65.Address.NON_ADDR)
+                ? "(no address)" : "$" + addr.ToString("x4");
+            return "Offset +" + offset.ToString("x6") + ", address " + addrText;
+        }
+
+        private async Task EditLabelAsync() {
+            int offset = GetSelectedOffset();
+            if (offset < 0) {
+                await Dialogs.ShowAsync(this, "Select a line first.", "Edit Label");
+                return;
+            }
+
+            EditLabelDialog dlg = new EditLabelDialog();
+            dlg.Configure(DescribeOffset(offset), mController.GetLabelAt(offset),
+                mController.HasUserLabelAt(offset), out _);
+            if (await dlg.ShowDialog<bool>(this) != true) {
+                return;
+            }
+
+            if (!mController.SetLabel(offset, dlg.LabelText, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Edit Label");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        private async Task EditCommentAsync() {
+            int offset = GetSelectedOffset();
+            if (offset < 0) {
+                await Dialogs.ShowAsync(this, "Select a line first.", "Edit Comment");
+                return;
+            }
+
+            EditCommentDialog dlg = new EditCommentDialog();
+            dlg.Configure(DescribeOffset(offset), mController.GetCommentAt(offset));
+            if (await dlg.ShowDialog<bool>(this) != true) {
+                return;
+            }
+
+            if (!mController.SetComment(offset, dlg.CommentText, out string error)) {
+                await Dialogs.ShowAsync(this, error, "Edit Comment");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        private async Task SaveAsync() {
+            if (!mController.SaveProject(out string error)) {
+                await Dialogs.ShowAsync(this, error, "Save Project");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        private async Task UndoAsync() {
+            if (!mController.Undo(out string error)) {
+                await Dialogs.ShowAsync(this, error, "Undo");
+                return;
+            }
+            RefreshFromController();
+        }
+
+        private async Task RedoAsync() {
+            if (!mController.Redo(out string error)) {
+                await Dialogs.ShowAsync(this, error, "Redo");
+                return;
+            }
+            RefreshFromController();
         }
 
         // ---- project lifecycle ----
@@ -303,12 +390,37 @@ namespace SourceGen.Views {
                 hasProject && mController.Messages.Count > 0;
             this.FindControl<TextBlock>("statusBarText").Text = mController.StatusText;
             this.FindControl<Button>("messageStatusButton").Content = mController.MessageSummary;
+
+            // Editing rebuilds the list, which clears the selection; put it back so the user
+            // stays where they were.
+            if (hasProject && mSelectedLineIndex >= 0) {
+                this.FindControl<ListBox>("codeListView").SelectedIndex =
+                    System.Math.Min(mSelectedLineIndex, mController.LineCount - 1);
+            }
+
+            // Undo/redo availability changed.
+            SaveCommand?.RaiseCanExecuteChanged();
+            UndoCommand?.RaiseCanExecuteChanged();
+            RedoCommand?.RaiseCanExecuteChanged();
+            EditLabelCommand?.RaiseCanExecuteChanged();
+            EditCommentCommand?.RaiseCanExecuteChanged();
         }
+
+        /// <summary>
+        /// Line the user last selected, remembered across refreshes.
+        /// </summary>
+        private int mSelectedLineIndex = -1;
 
         // ---- event handlers referenced from XAML ----
 
         private void CodeListView_SelectionChanged(object sender, SelectionChangedEventArgs e) {
+            ListBox list = this.FindControl<ListBox>("codeListView");
+            if (list != null && list.SelectedIndex >= 0) {
+                mSelectedLineIndex = list.SelectedIndex;
+            }
             CopyCommand?.RaiseCanExecuteChanged();
+            EditLabelCommand?.RaiseCanExecuteChanged();
+            EditCommentCommand?.RaiseCanExecuteChanged();
         }
 
         private void CodeListView_DoubleTapped(object sender, TappedEventArgs e) {

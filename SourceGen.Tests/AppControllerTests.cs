@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.IO;
 using Xunit;
 
+using Asm65;
 using SourceGen.AsmGen;
 
 namespace SourceGen.Tests {
@@ -186,6 +187,161 @@ namespace SourceGen.Tests {
 
             Assert.False(ok);
             Assert.Contains("No project", error);
+        }
+
+        /// <summary>
+        /// Picks an offset in the code list that currently has no user label, so an edit can
+        /// be applied and observed.
+        /// </summary>
+        private static int FindUnlabelledOffset(AppController controller) {
+            for (int i = 0; i < controller.LineCount; i++) {
+                int offset = controller.GetFileOffset(i);
+                if (offset >= 0 && !controller.HasUserLabelAt(offset) &&
+                        controller.GetAddressAt(offset) != Address.NON_ADDR) {
+                    return offset;
+                }
+            }
+            throw new InvalidOperationException("no editable offset found");
+        }
+
+        [Fact]
+        public void SetLabel_AddsLabelAndAppearsInListing() {
+            using AppController controller = new AppController();
+            Assert.True(controller.OpenProject(TutorialPath, out string error), error);
+
+            int offset = FindUnlabelledOffset(controller);
+            Assert.True(controller.SetLabel(offset, "MyTestLabel", out error), error);
+
+            Assert.Equal("MyTestLabel", controller.GetLabelAt(offset));
+            Assert.True(controller.HasUserLabelAt(offset));
+            Assert.True(controller.CanUndo);
+
+            // The change must be reflected in the rendered listing, not just the model.
+            bool sawLabel = false;
+            foreach (DisplayList.FormattedParts parts in controller.CodeList) {
+                if (parts.Label != null && parts.Label.Contains("MyTestLabel")) {
+                    sawLabel = true;
+                    break;
+                }
+            }
+            Assert.True(sawLabel, "new label did not appear in the code list");
+        }
+
+        [Fact]
+        public void SetLabel_UndoAndRedo() {
+            using AppController controller = new AppController();
+            Assert.True(controller.OpenProject(TutorialPath, out string error), error);
+
+            int offset = FindUnlabelledOffset(controller);
+            Assert.True(controller.SetLabel(offset, "UndoMe", out error), error);
+            Assert.Equal("UndoMe", controller.GetLabelAt(offset));
+
+            Assert.True(controller.Undo(out error), error);
+            Assert.False(controller.HasUserLabelAt(offset));
+            Assert.True(controller.CanRedo);
+
+            Assert.True(controller.Redo(out error), error);
+            Assert.Equal("UndoMe", controller.GetLabelAt(offset));
+        }
+
+        [Fact]
+        public void SetLabel_RemoveWithEmptyString() {
+            using AppController controller = new AppController();
+            Assert.True(controller.OpenProject(TutorialPath, out string error), error);
+
+            int offset = FindUnlabelledOffset(controller);
+            Assert.True(controller.SetLabel(offset, "TempLabel", out error), error);
+            Assert.True(controller.SetLabel(offset, string.Empty, out error), error);
+
+            Assert.False(controller.HasUserLabelAt(offset));
+        }
+
+        [Fact]
+        public void SetLabel_RejectsInvalidLabel() {
+            using AppController controller = new AppController();
+            Assert.True(controller.OpenProject(TutorialPath, out string error), error);
+
+            int offset = FindUnlabelledOffset(controller);
+            bool ok = controller.SetLabel(offset, "not a valid label!", out error);
+
+            Assert.False(ok);
+            Assert.Contains("not a valid label", error);
+            Assert.False(controller.HasUserLabelAt(offset));
+        }
+
+        [Fact]
+        public void SetComment_AddsUndoesAndRedoes() {
+            using AppController controller = new AppController();
+            Assert.True(controller.OpenProject(TutorialPath, out string error), error);
+
+            int offset = FindUnlabelledOffset(controller);
+            Assert.Equal(string.Empty, controller.GetCommentAt(offset));
+
+            Assert.True(controller.SetComment(offset, "a test comment", out error), error);
+            Assert.Equal("a test comment", controller.GetCommentAt(offset));
+
+            bool sawComment = false;
+            foreach (DisplayList.FormattedParts parts in controller.CodeList) {
+                if (parts.Comment != null && parts.Comment.Contains("a test comment")) {
+                    sawComment = true;
+                    break;
+                }
+            }
+            Assert.True(sawComment, "comment did not appear in the code list");
+
+            Assert.True(controller.Undo(out error), error);
+            Assert.Equal(string.Empty, controller.GetCommentAt(offset));
+        }
+
+        [Fact]
+        public void Editing_RequiresAnOpenProject() {
+            using AppController controller = new AppController();
+            Assert.False(controller.SetLabel(0, "X", out string error));
+            Assert.Contains("No project", error);
+            Assert.False(controller.SetComment(0, "text", out error));
+            Assert.Contains("No project", error);
+            Assert.False(controller.CanUndo);
+        }
+
+        [Fact]
+        public void EditsSurviveSaveAndReload() {
+            // Work on a copy so the checked-in example is untouched.
+            string tempDir = Path.Combine(Path.GetTempPath(),
+                "sg-save-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+
+            string sourceData = TutorialPath.Substring(0,
+                TutorialPath.Length - ProjectFile.FILENAME_EXT.Length);
+            string projectPath = Path.Combine(tempDir, Path.GetFileName(TutorialPath));
+            string dataPath = projectPath.Substring(0,
+                projectPath.Length - ProjectFile.FILENAME_EXT.Length);
+            File.Copy(TutorialPath, projectPath);
+            File.Copy(sourceData, dataPath);
+
+            try {
+                int offset;
+                using (AppController controller = new AppController()) {
+                    Assert.True(controller.OpenProject(projectPath, out string error), error);
+                    offset = FindUnlabelledOffset(controller);
+
+                    Assert.True(controller.SetLabel(offset, "SavedLabel", out error), error);
+                    Assert.True(controller.SetComment(offset, "saved comment", out error), error);
+                    Assert.True(controller.IsDirty, "edits should mark the project dirty");
+
+                    Assert.True(controller.SaveProject(out error), error);
+                    Assert.False(controller.IsDirty, "save should clear the dirty flag");
+                }
+
+                // Re-open from scratch: the edits must have been persisted, which also
+                // exercises the project-file serializer end to end.
+                using (AppController reopened = new AppController()) {
+                    Assert.True(reopened.OpenProject(projectPath, out string error), error);
+                    Assert.Equal("SavedLabel", reopened.GetLabelAt(offset));
+                    Assert.Equal("saved comment", reopened.GetCommentAt(offset));
+                }
+            } finally {
+                Directory.Delete(tempDir, true);
+            }
         }
     }
 }
