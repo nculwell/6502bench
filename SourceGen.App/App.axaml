@@ -26,6 +26,15 @@
     <Style Selector="DataGridColumnHeader">
       <Setter Property="Padding" Value="4,0,0,0" />
     </Style>
+    <!-- Fluent gives cells their own 15px FontSize (so they don't inherit the window's)
+         and a 32px minimum height. -->
+    <Style Selector="DataGridCell">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="MinHeight" Value="18" />
+    </Style>
+    <Style Selector="DataGridRow">
+      <Setter Property="MinHeight" Value="18" />
+    </Style>
 
     <!-- Avalonia ships DataGrid theming as a separate style include. -->
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />

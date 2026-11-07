@@ -182,12 +182,16 @@
         </Grid>
 
         <!-- code list, shown when a project is open -->
-        <Grid Grid.Row="0" Name="codeListGrid" IsVisible="False" RowDefinitions="Auto,*">
+        <Grid Grid.Row="0" Name="codeListGrid" ClipToBounds="True" IsVisible="False" RowDefinitions="Auto,*">
           <!-- Column headers.  The WPF version used ListView+GridView, which Avalonia does
                not have; a fixed header row plus a virtualizing ListBox reproduces it and
-               keeps the monospace column alignment the disassembly relies on. -->
-          <Border Grid.Row="0" Name="codeListHeader" Padding="4,2"
-                  Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+               keeps the monospace column alignment the disassembly relies on.
+               The header sits in its own ScrollViewer (scroll bar hidden) whose horizontal
+               offset is kept in sync with the list's; see MainWindow.SetupCodeListScrollSync. -->
+          <ScrollViewer Grid.Row="0" Name="codeListHeaderScroll"
+                        HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+          <Border Name="codeListHeader" Padding="4,2" HorizontalAlignment="Left">
             <Grid ColumnDefinitions="60,60,93,80,54,73,60,100,*">
               <TextBlock Grid.Column="0" Text="Offset" />
               <TextBlock Grid.Column="1" Text="Addr" />
@@ -200,8 +204,10 @@
               <TextBlock Grid.Column="8" Text="Comment" />
             </Grid>
           </Border>
+          </ScrollViewer>
 
           <ListBox Grid.Row="1" Name="codeListView" FontFamily="{StaticResource GeneralMonoFont}" SelectionMode="Multiple"
+                   ScrollViewer.HorizontalScrollBarVisibility="Auto"
                    SelectionChanged="CodeListView_SelectionChanged"
                    DoubleTapped="CodeListView_DoubleTapped">
             <ListBox.Styles>

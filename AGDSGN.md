@@ -30,7 +30,26 @@ resizing every control, `App.axaml` brings back WPF-like metrics globally:
 `ControlContentThemeFontSize` 12 (menus read this resource instead of the inherited
 size). It also overrides `DataGridSortIconMinWidth` and
 `DataGridTextColumnCellTextBlockMargin`, and sets Button/ToggleButton padding and
-centred content. New UI should be designed against these metrics.
+centred content. Fluent's `DataGridCell` sets its own `FontSize` (15) and `MinHeight`
+(32) instead of inheriting, so `DataGridCell` and `DataGridRow` are restyled too. New UI should be designed against these metrics.
 
 `GeneralMonoFont` is a fallback list (Consolas, Menlo, DejaVu Sans Mono, ...), so it
 works on Windows, macOS and Linux.
+
+### Code list clipping
+
+The code list is a fixed-width header `Grid` above a `ListBox` (Avalonia has no
+ListView/GridView). Avalonia doesn't clip children to their layout slot by default, so
+`codeListGrid` and `launchPanel` set `ClipToBounds="True"` to keep wide content from
+drawing over the neighboring panes.
+
+### Code list horizontal scrolling
+
+Avalonia's `ListBox` disables horizontal scrolling by default, which hid the rightmost
+columns in a narrow pane. It is turned on (`ScrollViewer.HorizontalScrollBarVisibility`).
+Because the header row is a separate control, it is wrapped in its own `ScrollViewer`
+with a hidden scroll bar. `MainWindow.SetupCodeListScrollSync` hooks the list's
+`PART_ScrollViewer.ScrollChanged`, sets the header's `MinWidth` to the list's extent so
+both can scroll the same distance, and copies the X offset to the header. The offset is
+posted to the dispatcher because the header's extent only grows after layout, and
+setting the offset sooner would clamp it.

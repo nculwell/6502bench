@@ -15,3 +15,9 @@
   button and DataGrid header/cell padding, and no reserved sort-icon space. It also
   adds a `GeneralMonoFont` resource, which is applied to the code list and data grids
   as in WPF. The launch panel clips its oversized title.
+- DataGrid cells now use 12px text and 18px minimum row/cell height; Fluent had set
+  them to 15px text and 32px rows. The code list grid clips to its pane, so its fixed-width
+  column header no longer draws over the right sidebar when the center pane is narrow.
+- Code list scrolls horizontally. The `ListBox` scroll bar is enabled, and the column
+  header row is in a hidden-scroll-bar `ScrollViewer` that follows the list's horizontal
+  offset (`MainWindow.SetupCodeListScrollSync`).

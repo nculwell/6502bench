@@ -15,11 +15,13 @@
  */
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 
 using SourceGen.AsmGen;
 using SourceGen.Commands;
@@ -112,6 +114,35 @@ namespace SourceGen.Views {
             this.FindControl<TextBlock>("launchVersionText").Text =
                 "Version " + App.ProgramVersion;
             this.FindControl<TextBlock>("statusBarText").Text = "Ready";
+
+            SetupCodeListScrollSync();
+        }
+
+        /// <summary>
+        /// Keeps the code list's column header row scrolled horizontally with the list.
+        /// WPF's GridView did this itself; here the header is a separate control.
+        /// </summary>
+        private void SetupCodeListScrollSync() {
+            ListBox list = this.FindControl<ListBox>("codeListView");
+            ScrollViewer headerScroll = this.FindControl<ScrollViewer>("codeListHeaderScroll");
+            Border header = this.FindControl<Border>("codeListHeader");
+
+            list.TemplateApplied += (sender, e) => {
+                ScrollViewer listScroll = e.NameScope.Find<ScrollViewer>("PART_ScrollViewer");
+                if (listScroll == null) {
+                    return;
+                }
+                listScroll.ScrollChanged += (s, args) => {
+                    // Make the header as wide as the list content, so it can scroll as far.
+                    header.MinWidth = listScroll.Extent.Width;
+                    double x = listScroll.Offset.X;
+                    if (headerScroll.Offset.X != x) {
+                        // The header's extent may not have grown yet; apply after layout.
+                        Dispatcher.UIThread.Post(() =>
+                            headerScroll.Offset = new Vector(x, 0));
+                    }
+                };
+            };
         }
 
         private void InitializeComponent() {
