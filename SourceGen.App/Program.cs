@@ -26,6 +26,8 @@ namespace SourceGen {
         // initialized yet.
         [STAThread]
         public static void Main(string[] args) {
+            // Failed Debug.Asserts would otherwise kill the process (see AssertHandler).
+            AssertHandler.Install(Console.Error);
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
 

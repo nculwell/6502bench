@@ -520,9 +520,24 @@ namespace SourceGen.Views {
                 return;
             }
 
-            if (!mController.OpenProject(path, out string error)) {
-                await Dialogs.ShowAsync(this, error, "Unable to open project");
-                return;
+            if (!mController.OpenProject(path, false, out string error, out bool crcMismatch)) {
+                if (!crcMismatch) {
+                    await Dialogs.ShowAsync(this, error, "Unable to open project");
+                    return;
+                }
+                // Same length, different contents.  Often deliberate (regenerated or
+                // patched binary, or the original is gone), so let the user proceed.
+                bool proceed = await Dialogs.ConfirmAsync(this, error + "\n\n" +
+                    "The data file doesn't match the one this project was made from. " +
+                    "Open it anyway?  The project will be updated to the new file " +
+                    "when you save.", "Data file changed");
+                if (!proceed ||
+                        !mController.OpenProject(path, true, out error, out _)) {
+                    if (proceed) {
+                        await Dialogs.ShowAsync(this, error, "Unable to open project");
+                    }
+                    return;
+                }
             }
             RefreshFromController();
         }
