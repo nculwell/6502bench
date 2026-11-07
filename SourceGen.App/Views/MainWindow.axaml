@@ -19,7 +19,8 @@
     <KeyBinding Gesture="F3" Command="{Binding FindNextCommand}" />
     <KeyBinding Gesture="Shift+F3" Command="{Binding FindPreviousCommand}" />
     <KeyBinding Gesture="Ctrl+G" Command="{Binding GotoCommand}" />
-    <KeyBinding Gesture="Ctrl+;" Command="{Binding EditCommentCommand}" />
+    <!-- Avalonia KeyGesture.Parse rejects a literal ";"; use the Key enum name. -->
+    <KeyBinding Gesture="Ctrl+OemSemicolon" Command="{Binding EditCommentCommand}" />
     <KeyBinding Gesture="F1" Command="{Binding HelpCommand}" />
   </Window.KeyBindings>
 
@@ -76,7 +77,7 @@
       <MenuItem Header="_Actions">
         <MenuItem Header="Edit _Operand" Command="{Binding EditOperandCommand}" />
         <MenuItem Header="Edit _Label" Command="{Binding EditLabelCommand}" />
-        <MenuItem Header="Edit _Comment" Command="{Binding EditCommentCommand}" InputGesture="Ctrl+;" />
+        <MenuItem Header="Edit _Comment" Command="{Binding EditCommentCommand}" InputGesture="Ctrl+OemSemicolon" />
         <MenuItem Header="Edit _Long Comment" Command="{Binding EditLongCommentCommand}" />
         <MenuItem Header="Edit _Note" Command="{Binding EditNoteCommand}" />
         <MenuItem Header="Edit _Address" Command="{Binding EditAddressCommand}" />
