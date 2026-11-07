@@ -9,3 +9,9 @@
   found`). In `SourceGen.App/Views/MainWindow.axaml`, the Edit Comment shortcut is now
   written as `Ctrl+OemSemicolon` instead of `Ctrl+;`, in both the `KeyBinding` and the
   `MenuItem.InputGesture`.
+- Fixed SourceGen.App sizing and clipping. The layouts ported from WPF have fixed pixel
+  widths sized for 12px text, but Avalonia's Fluent theme defaults to 14px text and
+  large padding. `App.axaml` now uses compact density, a 12px base font, tighter
+  button and DataGrid header/cell padding, and no reserved sort-icon space. It also
+  adds a `GeneralMonoFont` resource, which is applied to the code list and data grids
+  as in WPF. The launch panel clips its oversized title.

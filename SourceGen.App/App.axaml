@@ -4,7 +4,28 @@
              RequestedThemeVariant="Light">
 
   <Application.Styles>
-    <FluentTheme />
+    <!-- The window layouts were ported from WPF with fixed pixel widths sized for WPF's
+         12px Segoe UI and tight padding.  Fluent defaults to 14px text and roomier
+         controls, which clips buttons and headers, so use the compact density and a
+         12px base font size. -->
+    <FluentTheme DensityStyle="Compact" />
+    <Style Selector="Window">
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+
+    <!-- WPF buttons center their content and use little padding; many buttons have
+         fixed sizes that assume this. -->
+    <Style Selector="Button, ToggleButton">
+      <Setter Property="Padding" Value="2,1" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- Fluent DataGrid headers pad 12px on the left, too much for the narrow fixed-width
+         columns ported from WPF (e.g. 53px "Offset"). -->
+    <Style Selector="DataGridColumnHeader">
+      <Setter Property="Padding" Value="4,0,0,0" />
+    </Style>
 
     <!-- Avalonia ships DataGrid theming as a separate style include. -->
     <StyleInclude Source="avares://Avalonia.Controls.DataGrid/Themes/Fluent.xaml" />
@@ -35,6 +56,16 @@
 
   <Application.Resources>
     <ResourceDictionary>
+      <!-- Fluent sizes menus and other templated text from this resource, not from
+           the inherited FontSize. -->
+      <x:Double x:Key="ControlContentThemeFontSize">12</x:Double>
+      <!-- By default the DataGrid reserves 32px in every column header for the sort
+           arrow, and pads cell text by 12px. -->
+      <x:Double x:Key="DataGridSortIconMinWidth">0</x:Double>
+      <Thickness x:Key="DataGridTextColumnCellTextBlockMargin">4,0,4,0</Thickness>
+      <!-- Monospace font for the code list and data grids.  WPF used Consolas; the
+           fallbacks cover Linux and macOS. -->
+      <FontFamily x:Key="GeneralMonoFont">Consolas, Menlo, DejaVu Sans Mono, Liberation Mono, monospace</FontFamily>
       <ResourceDictionary.MergedDictionaries>
         <!-- Light and dark palettes; only one is merged at a time and the choice is
              applied at runtime from AppSettings. -->
